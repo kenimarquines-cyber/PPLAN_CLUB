@@ -1,6 +1,6 @@
-// 1. Importamos las librerías oficiales de Firebase desde la CDN de Google
+// 1. Importamos las librerías oficiales de Firebase desde la CDN de Google (¡onSnapshot incluido aquí arriba!)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // 2. Tus credenciales reales de PlanClub extraídas de tu consola
 const firebaseConfig = {
@@ -75,6 +75,18 @@ async function crearSalaConCodigo(name) {
     if (typeof toast === "function") toast("¡Sala creada con éxito!");
     mostrarCodigoCreado(code); 
 
+    // OYENTE EN TIEMPO REAL: Detectar cuando el invitado se conecte
+    const unsubscribe = onSnapshot(doc(db, "salas", roomId), (snapshot) => {
+      if (snapshot.exists()) {
+        const datosSala = snapshot.data();
+        // Si el estado cambia a conectado, mandamos al creador directo al chat
+        if (datosSala.estado === "conectado" && datosSala.guestId) {
+          unsubscribe(); // Dejamos de escuchar la sala
+          abrirChat(datosSala.guestNombre); // Pasamos al chat con el nombre del invitado
+        }
+      }
+    });
+
   } catch(err) {
     console.error("ERROR DETECTADO:", err);
     alert("Error al crear la sala: " + err.message);
@@ -122,31 +134,33 @@ async function unirseConCodigo(name, code) {
   localStorage.setItem("planclub_room", roomId);
 
   const btn = $("btn-unirse");
-  btn.textContent = "Conectando...";
-  btn.disabled = true;
+  if (btn) {
+    btn.textContent = "Conectando...";
+    btn.disabled = true;
+  }
 
   let salaSnap;
   try {
     salaSnap = await getDoc(doc(db, "salas", roomId));
   } catch(err) {
-    console.error(err);
-    if (typeof toast === "function") toast("Error de conexión", true);
-    btn.textContent = "UNIRME AL CHAT"; btn.disabled = false;
+    console.error("Error al obtener documento:", err);
+    ejecutarToast("Error de conexión", true);
+    if (btn) { btn.textContent = "UNIRME AL CHAT"; btn.disabled = false; }
     return;
   }
 
   if (!salaSnap.exists()) {
-    if (typeof toast === "function") toast("Código incorrecto — sala no encontrada", true);
+    ejecutarToast("Código incorrecto — sala no encontrada", true);
     digitInputs.forEach(d => { d.style.borderColor="#ff4455"; });
     setTimeout(() => digitInputs.forEach(d => { d.style.borderColor=""; }), 1500);
-    btn.textContent = "UNIRME AL CHAT"; btn.disabled = false;
+    if (btn) { btn.textContent = "UNIRME AL CHAT"; btn.disabled = false; }
     return;
   }
 
   const sala = salaSnap.data();
   if (sala.estado !== "esperando" && sala.guestId !== myId && sala.hostId !== myId) {
-    if (typeof toast === "function") toast("Esta sala ya está en uso", true);
-    btn.textContent = "UNIRME AL CHAT"; btn.disabled = false;
+    ejecutarToast("Esta sala ya está en uso", true);
+    if (btn) { btn.textContent = "UNIRME AL CHAT"; btn.disabled = false; }
     return;
   }
 
@@ -157,21 +171,87 @@ async function unirseConCodigo(name, code) {
       estado:      "conectado"
     });
   } catch(err) {
-    if (typeof toast === "function") toast("Error al unirse", true);
-    btn.textContent = "UNIRME AL CHAT"; btn.disabled = false;
+    console.error("Error al actualizar sala:", err);
+    ejecutarToast("Error al unirse", true);
+    if (btn) { btn.textContent = "UNIRME AL CHAT"; btn.disabled = false; }
     return;
   }
 
-  if (typeof abrirChat === "function") abrirChat(sala.hostNombre);
+  // Ejecutar el paso al chat de forma segura
+  const nombreAnfitrion = sala.hostNombre || "Anfitrión";
+  abrirChat(nombreAnfitrion);
 }
 
 // 2. Controlador del botón de Unirse
 function handleUnirse() {
   const name = $("input-name-unirse").value.trim();
-  if (!name) { $("input-name-unirse").focus(); if (typeof toast === "function") toast("Escribe tu nombre primero"); return; }
+  if (!name) { 
+    $("input-name-unirse").focus(); 
+    ejecutarToast("Escribe tu nombre primero"); 
+    return; 
+  }
   const code = [...digitInputs].map(d => d.value).join("");
-  if (code.length < 6) { digitInputs[0].focus(); if (typeof toast === "function") toast("Ingresa el código completo"); return; }
+  if (code.length < 6) { 
+    digitInputs[0].focus(); 
+    ejecutarToast("Ingresa el código completo"); 
+    return; 
+  }
   unirseConCodigo(name, code);
+}
+
+
+/* ── CAMBIO DE PANTALLA AL CHAT ACTIVO ──────────────── */
+
+function abrirChat(nombreCompañero) {
+  try {
+    // 1. Ocultar todas las pantallas de acceso o espera
+    if ($("screen-access")) $("screen-access").classList.remove("active");
+    if ($("screen-espera")) $("screen-espera").classList.remove("active");
+    
+    // 2. Activar visualmente la pantalla del chat
+    const screenChat = $("screen-chat");
+    if (screenChat) {
+      screenChat.classList.add("active");
+      screenChat.style.display = "flex"; 
+    }
+
+    // 3. Colocar los datos del rival en la cabecera del chat
+    if ($("chat-peer-name")) $("chat-peer-name").textContent = nombreCompañero;
+    if ($("chat-peer-avatar")) $("chat-peer-avatar").textContent = nombreCompañero.charAt(0).toUpperCase();
+    if ($("chat-room-code")) $("chat-room-code").textContent = "# " + roomCode;
+
+    // 4. Cambiar el estado en la cabecera a conectado
+    const dot = $("chat-status-dot");
+    if (dot) {
+      dot.classList.remove("waiting");
+      dot.classList.add("online");
+    }
+    const txt = $("chat-status-txt");
+    if (txt) txt.textContent = "en línea";
+
+    // 5. Desbloquear la barra de entrada de mensajes
+    const inputBar = $("input-bar");
+    if (inputBar) inputBar.classList.remove("locked");
+
+    ejecutarToast("¡Chat conectado!");
+    escucharMensajes(); 
+
+  } catch (error) {
+    console.error("Error crítico dentro de abrirChat():", error);
+  }
+}
+
+// Función de control para evitar que la app muera si no encuentra 'toast'
+function ejecutarToast(mensaje, esError = false) {
+  if (typeof toast === "function") {
+    toast(mensaje);
+  } else {
+    console.log(`[Toast Info] ${mensaje}`);
+  }
+}
+
+function escucharMensajes() {
+  console.log("Escuchando mensajes en la sala: " + roomId);
 }
 
 
