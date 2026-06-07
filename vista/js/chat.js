@@ -83,6 +83,7 @@ document.querySelectorAll(".role-btn").forEach(btn => {
 });
 
 /* ── CREAR SALA ─────────────────────────────────────── */
+/* ── CREAR SALA ─────────────────────────────────────── */
 $("btn-crear").addEventListener("click", handleCrear);
 $("input-name-crear").addEventListener("keydown", e => { if (e.key==="Enter") handleCrear(); });
 
@@ -112,7 +113,7 @@ async function handleCrear() {
       creadaEn:    serverTimestamp()
     });
 
-    // 2. Guardamos credenciales locales para re-conexión si recarga por error
+    // 2. GUARDADO SEGURO: Ahora que las variables tienen valor, las guardamos
     localStorage.setItem("planclub_id", myId);
     localStorage.setItem("planclub_name", myName);
     localStorage.setItem("planclub_role", "host");
@@ -136,11 +137,10 @@ async function handleCrear() {
   } catch (err) {
     console.error("Error completo de Firebase:", err);
     toast("Error al crear sala", true);
-    btn.textContent = "GENERAR CÓDIGO";
+    btn.textContent = "CREAR SALA";
     btn.disabled = false;
   }
 }
-
 
 
 
@@ -150,7 +150,7 @@ async function unirseConCodigo(name, code) {
   roomCode = code;
   roomId   = "sala_" + code;
 
-  // Si ya existía una sesión local para esta misma sala, reutilizamos el ID viejo
+  // Comprobamos si es el mismo usuario regresando a la misma sala
   const localRoom = localStorage.getItem("planclub_room");
   const localId   = localStorage.getItem("planclub_id");
   
@@ -163,7 +163,7 @@ async function unirseConCodigo(name, code) {
   myName = name;
   myRole = "guest";
 
-  // Guardamos o actualizamos en el almacenamiento local
+  // Guardamos las credenciales del invitado
   localStorage.setItem("planclub_id", myId);
   localStorage.setItem("planclub_name", myName);
   localStorage.setItem("planclub_role", "guest");
@@ -192,22 +192,22 @@ async function unirseConCodigo(name, code) {
 
   const sala = salaSnap.data();
   
-  // MODIFICACIÓN DE SEGURIDAD: Si la sala no está esperando, pero los IDs coinciden, lo dejamos pasar (re-conexión)
+  // Si la sala NO está esperando, pero el ID coincide, lo dejamos pasar sin rebotarlo
   if (sala.estado !== "esperando" && sala.guestId !== myId && sala.hostId !== myId) {
-    toast("Esta sala ya está en uso o fue cerrada", true);
+    toast("Esta sala ya está en uso por otros usuarios", true);
     btn.textContent = "UNIRME AL CHAT"; btn.disabled = false;
     return;
   }
 
   try {
-    // Actualizamos en Firebase (si ya estaba conectado no afecta en nada malo re-escribirlo)
+    // Actualizamos el documento en Firestore
     await updateDoc(doc(db, "salas", roomId), {
       guestId:     myId,
       guestNombre: myName,
       estado:      "conectado"
     });
   } catch(err) {
-    toast("Error al unirse: " + err.message, true);
+    toast("Error al unirse", true);
     btn.textContent = "UNIRME AL CHAT"; btn.disabled = false;
     return;
   }
