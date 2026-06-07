@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PLANCLUB — VIP Chat</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Cormorant+Garamond:wght@300;400;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="../css/chat.css"/>
+
+</head>
+<body>
+
+<script type="module">
+  // =========================================================================
+  // 1. CONFIGURACIÓN E INICIALIZACIÓN DE FIREBASE (MODERNO V12)
+  // =========================================================================
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
+  import { getFirestore, collection, doc, setDoc, addDoc, onSnapshot, query, orderBy, updateDoc, deleteDoc, where } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDX6EWo3Y4M0a4bgOzmEF6DVU-ewd6aadE",
+    authDomain: "chatplanclub.firebaseapp.com",
+    projectId: "chatplanclub",
+    storageBucket: "chatplanclub.firebasestorage.app",
+    messagingSenderId: "495297083014",
+    appId: "1:495297083014:web:0e0d1b3e17e583840b0307"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // =========================================================================
+  // 2. VARIABLES DE CONTROL DE ESTADO GLOBAL
+  // =========================================================================
+  let currentUser = { name: "", role: "cliente", id: "" };
+  let activeRoomId = null; // ID de la sala de chat actual
+  let unsubscribeMessages = null; // Limpiador de oyente de mensajes
+
+  // =========================================================================
+  // 3. CAPTURA DE ELEMENTOS DEL DOM
+  // =========================================================================
+  const screenAccess = document.getElementById("screen-access");
+  const screenCliente = document.getElementById("screen-cliente");
+  const screenVendedor = document.getElementById("screen-vendedor");
+
+  const inputName = document.getElementById("input-name");
+  const btnRoleCliente = document.getElementById("btn-role-cliente");
+  const btnRoleVendedor = document.getElementById("btn-role-vendedor");
+  const vendorCodeGroup = document.getElementById("vendor-code-group");
+  const inputVendorCode = document.getElementById("input-vendor-code");
+  const btnEnter = document.getElementById("btn-enter");
+
+  // Elementos Cliente
+  const clientStatusDot = document.getElementById("client-status-dot");
+  const clientStatusTxt = document.getElementById("client-status-txt");
+  const clientWaiting = document.getElementById("client-waiting");
+  const clientRoomCode = document.getElementById("client-room-code");
+  const clientMessages = document.getElementById("client-messages");
+  const clientInputBar = document.getElementById("client-input-bar");
+  const clientMsgInput = document.getElementById("client-msg-input");
+  const clientSendBtn = document.getElementById("client-send-btn");
+  const btnClientExit = document.getElementById("btn-client-exit");
+
+  // Elementos Vendedor
+  const vendorChatList = document.getElementById("vendor-chat-list");
+  const vendorPlaceholder = document.getElementById("vendor-placeholder");
+  const vendorActiveChat = document.getElementById("vendor-active-chat");
+  const vendorDisplayId = document.getElementById("vendor-display-id");
+  const vchatName = document.getElementById("vchat-name");
+  const vchatAvatar = document.getElementById("vchat-avatar");
+  const vendorMessages = document.getElementById("vendor-messages");
+  const vendorMsgInput = document.getElementById("vendor-msg-input");
+  const vendorSendBtn = document.getElementById("vendor-send-btn");
+  const btnTerminateChat = document.getElementById("btn-terminate-chat");
+  const btnVendorExit = document.getElementById("btn-vendor-exit");
+  const statActive = document.getElementById("stat-active");
+  const statAvailable = document.getElementById("stat-available");
+  const notifAudio = document.getElementById("notif-audio");
+
+  // =========================================================================
+  // 4. LÓGICA DE LA PANTALLA DE ACCESO (LOGIN)
+  // =========================================================================
+  btnRoleCliente.addEventListener("click", () => {
+    currentUser.role = "cliente";
+    btnRoleCliente.classList.add("active");
+    btnRoleVendedor.classList.remove("active");
+    vendorCodeGroup.style.display = "none";
+  });
+
+  btnRoleVendedor.addEventListener("click", () => {
+    currentUser.role = "vendedor";
+    btnRoleVendedor.classList.add("active");
+    btnRoleCliente.classList.remove("active");
+    vendorCodeGroup.style.display = "block";
+  });
+
+  btnEnter.addEventListener("click", () => {
+    const name = inputName.value.trim();
+    if (!name) return alert("Por favor, introduce tu nombre.");
+    
+    currentUser.name = name;
+    currentUser.id = "usr_" + Math.random().toString(36).substring(2, 9);
+
+    if (currentUser.role === "vendedor") {
+      const code = inputVendorCode.value.trim();
+      if (code !== "PLANCLUB2026") { // Código de acceso temporal para vendedores
+        return alert("Código de vendedor incorrecto.");
+      }
+      initVendorFlow();
+    } else {
+      initClientFlow();
+    }
+  });
+
+  // =========================================================================
+  // 5. FLUJO DEL CLIENTE
+  // =========================================================================
+  async function initClientFlow() {
+    screenAccess.classList.remove("active");
+    screenCliente.classList.add("active");
+    clientStatusDot.style.backgroundColor = "var(--cyan, #00f3ff)";
+    clientStatusTxt.textContent = "Buscando conexión...";
+
+    // Crear una sala de chat única en Firestore para este cliente
+    activeRoomId = "room_" + currentUser.id;
+    clientRoomCode.textContent = currentUser.id.toUpperCase();
+
+    await setDoc(doc(db, "salas", activeRoomId), {
+      clienteId: currentUser.id,
+      clienteNombre: currentUser.name,
+      vendedorId: null,
+      estado: "esperando",
+      fecha: new Date()
+    });
+
+    // Escuchar cambios en la sala (esperando que un vendedor la tome)
+    onSnapshot(doc(db, "salas", activeRoomId), (snapshot) => {
+      if (!snapshot.exists()) return;
+      const data = snapshot.data();
+
+      if (data.estado === "atendido" && data.vendedorId) {
+        clientStatusDot.style.backgroundColor = "#00ff66";
+        clientStatusTxt.textContent = "Agente asignado";
+        clientWaiting.style.display = "none";
+        clientMessages.style.display = "flex";
+        clientInputBar.style.opacity = "1";
+        clientInputBar.style.pointerEvents = "auto";
+        
+        // Empezar a escuchar mensajes
+        listenMessages(clientMessages);
+      }
+    });
+  }
+
+  // Enviar mensaje (Cliente)
+  clientSendBtn.addEventListener("click", sendMessage);
+  clientMsgInput.addEventListener("keypress", (e) => { if(e.key === "Enter") sendMessage(); });
+
+  async function sendMessage() {
+    const input = currentUser.role === "cliente" ? clientMsgInput : vendorMsgInput;
+    const texto = input.value.trim();
+    if (!texto || !activeRoomId) return;
+
+    await addDoc(collection(db, "salas", activeRoomId, "mensajes"), {
+      remitenteId: currentUser.id,
+      remitenteNombre: currentUser.name,
+      texto: texto,
+      fecha: new Date()
+    });
+
+    input.value = "";
+  }
+
+  // =========================================================================
+  // 6. FLUJO DEL VENDEDOR
+  // =========================================================================
+  function initVendorFlow() {
+    screenAccess.classList.remove("active");
+    screenVendedor.classList.add("active");
+    vendorDisplayId.textContent = currentUser.name.toUpperCase();
+
+    // Escuchar todas las salas activas en el sistema
+    onSnapshot(collection(db, "salas"), (snapshot) => {
+      vendorChatList.innerHTML = "";
+      let countActive = 0;
+      let tieneSalasEnEspera = false;
+
+      snapshot.forEach((docSnap) => {
+        const sala = docSnap.data();
+        const salaId = docSnap.id;
+
+        // Mostrar salas que están esperando o atendidas por este vendedor específico
+        if (sala.estado === "esperando" || sala.vendedorId === currentUser.id) {
+          tieneSalasEnEspera = true;
+          if (sala.vendedorId === currentUser.id) countActive++;
+
+          const item = document.createElement("div");
+          item.className = `chat-item ${salaId === activeRoomId ? 'active' : ''} ${sala.estado === 'esperando' ? 'waiting-item' : ''}`;
+          item.innerHTML = `
+            <div class="chat-item-info">
+              <span class="chat-item-name">${sala.clienteNombre}</span>
+              <span class="chat-item-status">${sala.estado === 'esperando' ? '◆ En espera' : '● Atendiendo'}</span>
+            </div>
+          `;
+
+          // Clic en un cliente de la lista de la izquierda
+          item.addEventListener("click", async () => {
+            if (sala.estado === "esperando") {
+              // El vendedor toma el chat que estaba en espera
+              await updateDoc(doc(db, "salas", salaId), {
+                vendedorId: currentUser.id,
+                estado: "atendido"
+              });
+            }
+            selectRoom(salaId, sala.clienteNombre);
+          });
+
+          vendorChatList.appendChild(item);
+        }
+      });
+
+      if (!tieneSalasEnEspera && vendorChatList.children.length === 0) {
+        vendorChatList.innerHTML = '<div class="no-chats-msg">Sin clientes activos</div>';
+      }
+
+      // Actualizar contadores del Sidebar
+      statActive.textContent = countActive;
+      statAvailable.textContent = Math.max(0, 5 - countActive);
+    });
+  }
+
+  function selectRoom(salaId, clienteNombre) {
+    activeRoomId = salaId;
+    vendorPlaceholder.style.display = "none";
+    vendorActiveChat.style.display = "flex";
+    vchatName.textContent = clienteNombre;
+    vchatAvatar.textContent = clienteNombre.charAt(0).toUpperCase();
+
+    // Escuchar los mensajes de la sala seleccionada
+    listenMessages(vendorMessages);
+  }
+
+  // Enviar mensaje (Vendedor)
+  vendorSendBtn.addEventListener("click", sendMessage);
+  vendorMsgInput.addEventListener("keypress", (e) => { if(e.key === "Enter") sendMessage(); });
+
+  // Terminar Chat (Vendedor)
+  btnTerminateChat.addEventListener("click", async () => {
+    if (!activeRoomId) return;
+    if (confirm("¿Estás seguro de que deseas finalizar esta sesión de soporte?")) {
+      await deleteDoc(doc(db, "salas", activeRoomId));
+      vendorActiveChat.style.display = "none";
+      vendorPlaceholder.style.display = "flex";
+      activeRoomId = null;
+      if (unsubscribeMessages) unsubscribeMessages();
+    }
+  });
+
+  // =========================================================================
+  // 7. SISTEMA DE MENSAJERÍA COMPARTIDO EN TIEMPO REAL
+  // =========================================================================
+  function listenMessages(containerElement) {
+    if (unsubscribeMessages) unsubscribeMessages(); // Apagar oidor anterior si existe
+
+    const q = query(collection(db, "salas", activeRoomId, "mensajes"), orderBy("fecha", "asc"));
+
+    unsubscribeMessages = onSnapshot(q, (snapshot) => {
+      containerElement.innerHTML = "";
+
+      snapshot.forEach((docSnap) => {
+        const msg = docSnap.data();
+        const msgDiv = document.createElement("div");
+        
+        // Añadir clases estéticas automáticas según quién envíe el mensaje
+        msgDiv.className = `msg-bubble ${msg.remitenteId === currentUser.id ? 'sent' : 'received'}`;
+        msgDiv.innerHTML = `
+          <div class="msg-meta">${msg.remitenteNombre}</div>
+          <div class="msg-text">${msg.texto}</div>
+        `;
+        containerElement.appendChild(msgDiv);
+      });
+
+      // Hacer Scroll automático al fondo cuando llegue un mensaje
+      containerElement.scrollTop = containerElement.scrollHeight;
+
+      // Reproducir sonido si el último mensaje lo envió otra persona
+      if (snapshot.docChanges().length > 0) {
+        const ultimoCambio = snapshot.docChanges()[snapshot.docChanges().length - 1];
+        if (ultimoCambio.type === "added" && ultimoCambio.doc.data().remitenteId !== currentUser.id) {
+          try { notifAudio.play(); } catch(e) {}
+        }
+      }
+    });
+  }
+
+  // =========================================================================
+  // 8. ACCIONES DE SALIDA (LOGOUT COMPLETO)
+  // =========================================================================
+  async function exitSystem() {
+    if (currentUser.role === "cliente" && activeRoomId) {
+      await deleteDoc(doc(db, "salas", activeRoomId));
+    }
+    if (unsubscribeMessages) unsubscribeMessages();
+    location.reload(); // Recarga la página y vuelve al login de manera limpia
+  }
+
+  btnClientExit.addEventListener("click", exitSystem);
+  btnVendorExit.addEventListener("click", exitSystem);
+
+</script>
+
+<div class="bg-layer"></div>
+<div class="grid-overlay"></div>
+
+<div id="screen-access" class="screen active">
+  <div class="access-container">
+    <div class="brand-logo">
+      <span class="brand-name">PLANCLUB</span>
+      <span class="brand-tag">VIP SYSTEM</span>
+    </div>
+
+    <div class="access-card">
+      <div class="card-header-line"></div>
+
+      <p class="access-subtitle">PROTOCOLO DE ACCESO</p>
+
+      <div class="field-group">
+        <label class="field-label">TU NOMBRE</label>
+        <input class="neon-input" id="input-name" type="text" placeholder="Ej: Diego, Laura..."/>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">ACCEDER COMO</label>
+        <div class="role-toggle">
+          <button class="role-btn active" id="btn-role-cliente" data-role="cliente">
+            <span class="role-icon">◆</span> CLIENTE
+          </button>
+          <button class="role-btn" id="btn-role-vendedor" data-role="vendedor">
+            <span class="role-icon">◈</span> VENDEDOR
+          </button>
+        </div>
+      </div>
+
+      <div class="field-group" id="vendor-code-group" style="display:none;">
+        <label class="field-label">CÓDIGO DE VENDEDOR</label>
+        <input class="neon-input" id="input-vendor-code" type="password" placeholder="Código secreto..."/>
+        <span class="field-hint">Código de acceso requerido: PLANCLUB2026</span>
+      </div>
+
+      <button class="enter-btn" id="btn-enter">
+        <span>INICIAR SESIÓN</span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="screen-cliente" class="screen">
+  <div class="client-layout">
+    <div class="client-header">
+      <div class="header-brand">
+        <span class="brand-name-sm">PLANCLUB</span>
+        <span class="header-status-dot" id="client-status-dot"></span>
+        <span class="header-status-txt" id="client-status-txt">Conectando...</span>
+      </div>
+      <button class="icon-btn" id="btn-client-exit" title="Salir">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+
+    <div class="client-chat-area" id="client-chat-area">
+      <div class="waiting-state" id="client-waiting">
+        <div class="waiting-anim">
+          <div class="pulse-ring"></div>
+          <div class="pulse-ring delay1"></div>
+          <div class="pulse-ring delay2"></div>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <p class="waiting-title">Buscando un vendedor disponible</p>
+        <p class="waiting-sub">Tu código: <span class="code-badge" id="client-room-code">—</span></p>
+      </div>
+
+      <div class="messages-list" id="client-messages" style="display:none;"></div>
+    </div>
+
+    <div class="client-input-bar" id="client-input-bar" style="opacity:0.4; pointer-events:none;">
+      <input type="text" class="msg-input" id="client-msg-input" placeholder="Escribe tu mensaje..." autocomplete="off"/>
+      <button class="send-btn" id="client-send-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="screen-vendedor" class="screen">
+  <div class="vendor-layout">
+    <div class="vendor-sidebar">
+      <div class="sidebar-brand">
+        <span class="brand-name-sm">PLANCLUB</span>
+        <div class="vendor-badge">VENDEDOR</div>
+      </div>
+
+      <div class="sidebar-section-title">CHATS ACTIVOS</div>
+      <div class="chat-list" id="vendor-chat-list">
+        <div class="no-chats-msg">Sin clientes activos</div>
+      </div>
+
+      <div class="sidebar-section-title" style="margin-top:auto;">MI ESTADO</div>
+      <div class="vendor-stats">
+        <div class="stat-item">
+          <span class="stat-num" id="stat-active">0</span>
+          <span class="stat-lbl">activos</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-num" id="stat-max">5</span>
+          <span class="stat-lbl">máx</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-num" id="stat-available">5</span>
+          <span class="stat-lbl">libres</span>
+        </div>
+      </div>
+
+      <button class="sidebar-exit-btn" id="btn-vendor-exit">← Cerrar sesión</button>
+    </div>
+
+    <div class="vendor-chat-panel">
+      <div class="vendor-placeholder" id="vendor-placeholder">
+        <div class="placeholder-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <p class="placeholder-title">ESPERANDO CLIENTES</p>
+        <p class="placeholder-sub">Los clientes se conectan automáticamente cuando hay cupos disponibles</p>
+        <div class="vendor-available-code">
+          Tu ID de vendedor: <span id="vendor-display-id">—</span>
+        </div>
+      </div>
+
+      <div class="vendor-active-chat" id="vendor-active-chat" style="display:none;">
+        <div class="vendor-chat-header">
+          <div class="vchat-avatar" id="vchat-avatar">C</div>
+          <div class="vchat-info">
+            <span class="vchat-name" id="vchat-name">Cliente</span>
+            <span class="vchat-status" id="vchat-status">● activo</span>
+          </div>
+          <button class="terminate-btn" id="btn-terminate-chat">Terminar chat</button>
+        </div>
+        <div class="messages-list" id="vendor-messages"></div>
+        <div class="vendor-input-bar">
+          <input type="text" class="msg-input" id="vendor-msg-input" placeholder="Responde al cliente..." autocomplete="off"/>
+          <button class="send-btn" id="vendor-send-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<audio id="notif-audio" preload="auto">
+  <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAA..." type="audio/wav"/>
+</audio>
+
+</body>
+</html>

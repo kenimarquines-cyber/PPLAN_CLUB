@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo Bar Gold</title>
+    <link rel="stylesheet" href="../css/catalogo.css">
+</head>
+<body>
+
+<div class="phone-container">
+    <button class="back-home-btn" id="btnBack" onclick="regresar()">←</button>
+
+    <div id="overlay">
+        <div id="modal-confirmacion">
+            <h2>¿Confirmar pedido?</h2>
+            <p>Tu orden será procesada de inmediato.</p>
+            <button class="modal-btn btn-confirm" onclick="procesarPedido()">SÍ</button>
+            <button class="modal-btn btn-cancel" onclick="regresar()">NO</button>
+        </div>
+        <div id="modal-gracias" style="display:none;">
+            <div style="font-size: 60px;">🏆</div>
+            <h2>¡GRACIAS POR TU PEDIDO!</h2>
+            <p>En breve estaremos contigo.</p>
+            <button class="modal-btn btn-confirm" onclick="reiniciarApp()" style="width: 200px;">NUEVO PEDIDO</button>
+        </div>
+    </div>
+
+    <div class="content" id="catalogo-screen">
+        <header>Catálogo</header>
+        <div class="section-title">BEBIDAS</div>
+        <div class="products">
+            <div class="card">
+                <img src="https://cdn.mos.cms.futurecdn.net/v2/t:0,l:218,cw:563,ch:563,q:80,w:563/wn2NRMm5iJBXeZPBrefnhK.jpg">
+                <p>Bacardi</p><p class="price">$70.000</p>
+                <button class="add-btn" onclick="agregar('Bacardi',70000)">+</button>
+            </div>
+            <div class="card">
+                <img src="https://i.pinimg.com/474x/82/d8/48/82d84883fb32e2e4c31c7760830ee0f1.jpg">
+                <p>Coronita</p><p class="price">$5.000</p>
+                <button class="add-btn" onclick="agregar('Coronita',5000)">+</button>
+            </div>
+            <div class="card">
+                <img src="https://pbs.twimg.com/profile_images/472153934015254529/XOrYqyI2_400x400.jpeg">
+                <p>Néctar</p><p class="price">$50.000</p>
+                <button class="add-btn" onclick="agregar('Néctar',50000)">+</button>
+            </div>
+            <div class="card">
+                <img src="https://images.seeklogo.com/logo-png/18/1/cerveza-poker-logo-png_seeklogo-184736.png">
+                <p>Poker</p><p class="price">$3.500</p>
+                <button class="add-btn" onclick="agregar('Poker',3500)">+</button>
+            </div>
+            <div class="card">
+                <img src="https://imgproxy.domestika.org/unsafe/rs:fill/plain/src://content-items/002/864/382/Aguila_logo-original.png?1552905177">
+                <p>aguila</p><p class="price">$3.500</p>
+                <button class="add-btn" onclick="agregar('aguila',3500)">+</button>
+            </div>
+            <div class="card">
+                <img src="https://logowik.com/content/uploads/images/powerade374.logowik.com.webp">
+                <p>powerade</p><p class="price">$5.000</p>
+                <button class="add-btn" onclick="agregar('powerade',5000)">+</button>
+            </div>
+            <div class="card">
+                <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT0ro27SpW_X4XaTzLFQB2BWwNb80we3Kj9Ng&s">
+                <p>aguardiente amarillo</p><p class="price">$50.000</p>
+                <button class="add-btn" onclick="agregar('aguardiente amarillo',50000)">+</button>
+            </div>
+            <div class="card">
+                <img src="https://www.ronviejodecaldasrum.com/image/5862128.1593880979000/ronviego_logo_RED_W_RED_STROKE_540X410_300_O.png">
+                <p>ron viejo de caldas</p><p class="price">$62.000</p>
+                <button class="add-btn" onclick="agregar('ron viejo de caldas',62000)">+</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="content" id="pedido" style="display: none;">
+        <header>MI PEDIDO</header>
+        <div id="listaPedido"></div>
+        <div class="total">TOTAL: $<span id="total">0</span></div>
+        <div class="actions" style="margin-top:20px; display:flex; gap:10px;">
+            <button class="btn-cancel" onclick="vaciarCarrito()" style="flex:1; padding:12px; border-radius:10px; border:none; cursor:pointer;">VACIAR</button>
+            <button class="btn-confirm" onclick="abrirConfirmacion()" style="flex:1; padding:12px; border-radius:10px; border:none; cursor:pointer; background:#ffd700; font-weight:bold;">CONFIRMAR</button>
+        </div>
+    </div>
+
+    <div class="nav" id="main-nav">
+        <button onclick="verPedido()">Ver Pedido (<span id="cart-count">0</span>)</button>
+    </div>
+</div>
+
+<script src="../js/catalogo.js"></script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PlanClub - Premium Experience</title>
+    <!-- RUTA CORREGIDA: Salimos de HTML para entrar a CSS -->
+    <link rel="stylesheet" href="../css/reserva.css">
+    <!-- Fuente Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    
+    <div class="watermark-bg">PLANCLUB</div>
+
+    <div class="settings-container">
+        <button class="btn-settings" onclick="toggleSettings()">⚙️</button>
+        <div id="settings-menu" class="settings-menu">
+            <button onclick="window.location.href='perfil.html'">👤 Ver mi Perfil</button>
+            <button onclick="window.location.href='../../inde.html'">🚪 Cerrar Sesión</button>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <!-- Vista Home -->
+        <div id="view-home" class="view active">
+            <header>
+                <div class="logo">PLANCLUB</div>
+                <p style="color:#aaa;letter-spacing:2px; margin-top: 10px;">EXCLUSIVE ACCESS</p>
+            </header>
+            <button class="menu-btn" onclick="showView('form')"><span>✨ Nueva Reserva</span><span>→</span></button>
+            <button class="menu-btn" onclick="showView('list')"><span>📅 Mis Reservas</span><span>→</span></button>
+            <button class="menu-btn" style="margin-top:20px;" onclick="window.location.href='inicio.html'">
+                <span>🏠 Volver al Inicio</span><span>→</span>
+            </button>
+        </div>
+
+        <!-- Vista Formulario -->
+        <div id="view-form" class="view">
+            <button class="btn-back" onclick="showView('home')">← Volver al Inicio</button>
+            <div class="card">
+                <h3>Tus Datos</h3>
+                <input type="text" id="nombre" placeholder="Nombre completo">
+                <input type="date" id="fecha">
+                <input type="number" id="personas" placeholder="Cantidad de personas">
+                <button class="btn-action" onclick="confirmarDatos()">Ver Disponibilidad</button>
+            </div>
+        </div>
+
+        <!-- Vista Mapa -->
+        <div id="view-map" class="view">
+            <button class="btn-back" onclick="showView('form')">← Editar Datos</button>
+            <div style="text-align:center;"><small>Toca las mesas para seleccionar</small></div>
+            <div class="plano-container"><div class="grid-layout" id="mapa-grid"></div></div>
+            <div id="map-info" class="card" style="display:none;text-align:center;">
+                <p id="txt-mesas" style="color:var(--neon-cyan);font-weight:bold;"></p>
+                <h2 id="txt-total"></h2>
+                <button class="btn-action" onclick="showView('pago')">Proceder al Pago</button>
+            </div>
+        </div>
+
+        <!-- Vista Pago -->
+        <div id="view-pago" class="view">
+            <button class="btn-back" onclick="showView('map')">← Cambiar Mesas</button>
+            <div class="card">
+                <h2 style="color:var(--neon-purple);text-align:center;">Finalizar Compra</h2>
+                <div id="resumen-pago" style="font-size:.9rem;border-bottom:1px solid #333;padding-bottom:15px;margin-bottom:15px;"></div>
+                <p>Método de pago:</p>
+                <div class="metodo-pago active" onclick="selectPay(this)"><input type="radio" name="pay" checked> 💳 Tarjeta / Débito</div>
+                <div class="metodo-pago" onclick="selectPay(this)"><input type="radio" name="pay"> 📱 Nequi / Daviplata</div>
+                <button class="btn-action" style="background:var(--neon-cyan);color:black;margin-top:20px;" onclick="finalizarPago()">CONFIRMAR Y PAGAR</button>
+            </div>
+        </div>
+
+        <!-- Vista Lista -->
+        <div id="view-list" class="view">
+            <button class="btn-back" onclick="showView('home')">← Menú Principal</button>
+            <div id="reserva-container"></div>
+        </div>
+    </div>
+
+    <!-- RUTA CORREGIDA: Salimos de HTML para entrar a JAVASCRIPTS -->
+    <script src="../js/reserva.js"></script>
+</body>
+</html>

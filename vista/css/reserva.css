@@ -1,0 +1,233 @@
+:root {
+    --neon-cyan: #46d2da;
+    --neon-purple: #bc13fe;
+    --dark-bg: #050505;
+    --mesa-red: #ff3c3c;
+    --mesa-yellow: #ffec3d;
+    --mesa-orange: #ff913d;
+    --mesa-blue: #3d9dff;
+    --mesa-teal: #3dffec;
+}
+
+body {
+    font-family: 'Lexend', sans-serif;
+    margin: 0;
+    color: rgb(255, 255, 255);
+    display: flex;
+    justify-content: center;
+    /* CORRECCIÓN AQUÍ: ../ sale de CSS y IMG/ entra a la carpeta de imágenes */
+    background: linear-gradient(rgba(0, 0, 0, 0.37), rgba(0,0,0,0.6)), url("../img/fondo.png");
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+.watermark-bg {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%) rotate(-30deg);
+    font-size: 8rem;
+    font-weight: 900;
+    color: rgba(255,255,255,0.02);
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* RUEDITA NEÓN */
+.settings-container {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 1000;
+}
+
+.btn-settings {
+    background: rgba(0, 0, 0, 0);
+    border: 2px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    font-size: 1.5rem;
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
+}
+
+.btn-settings:hover { transform: rotate(90deg); box-shadow: 0 0 20px var(--neon-cyan); }
+
+.settings-menu {
+    position: absolute;
+    top: 55px;
+    left: 0;
+    background: rgba(10, 10, 10, 0.98);
+    border: 1px solid var(--neon-cyan);
+    border-radius: 15px;
+    width: 210px;
+    display: none;
+    flex-direction: column;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    overflow: hidden;
+}
+
+.settings-menu button {
+    background: none;
+    border: none;
+    color: white;
+    padding: 15px;
+    text-align: left;
+    cursor: pointer;
+    font-size: 0.9rem;
+    border-bottom: 1px solid #222;
+    width: 100%;
+}
+
+.settings-menu button:hover { background: rgba(0, 243, 255, 0.1); color: var(--neon-cyan); }
+
+.app-container {
+    width: 100%;
+    max-width: 480px;
+    min-height: 100vh;
+    padding: 20px;
+    box-sizing: border-box;
+    position: relative;
+}
+
+header { text-align: center; padding: 40px 0 20px 0; }
+
+@keyframes flotar {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0px); }
+}
+
+.logo {
+    font-size: 3rem;
+    font-weight: 900;
+    background: linear-gradient(45deg, var(--neon-cyan), var(--neon-purple));
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin: 0;
+    filter: drop-shadow(0 0 10px rgba(0, 243, 255, 0.3));
+    display: inline-block;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    cursor: default;
+    animation: flotar 3s ease-in-out infinite;
+}
+
+.logo:hover { transform: scale(1.15); }
+
+.view { display: none; }
+.view.active { display: block; animation: fadeIn .4s ease; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.menu-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    padding: 25px;
+    margin: 15px 0;
+    border-radius: 20px;
+    width: 100%;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: .3s;
+    backdrop-filter: blur(10px);
+}
+
+.menu-btn:hover { border-color: var(--neon-cyan); background: rgba(255, 255, 255, 0.15); transform: translateY(-3px); }
+
+.card {
+    background: rgba(0, 0, 0, 0.85);
+    padding: 25px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
+    margin-bottom: 20px;
+}
+
+input, .btn-action {
+    width: 100%;
+    padding: 18px;
+    margin: 10px 0;
+    border-radius: 14px;
+    border: 1px solid #333;
+    background: #0d0d0d;
+    color: white;
+    box-sizing: border-box;
+}
+
+.btn-action {
+    background: linear-gradient(90deg, var(--neon-purple), #7a12f5);
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+    color: white;
+}
+
+.btn-back { background: none; border: none; color: var(--neon-cyan); cursor: pointer; margin-bottom: 15px; font-weight: bold; font-size: 1rem; }
+
+.plano-container {
+    margin: 20px auto;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.9);
+    border-radius: 15px;
+    max-width: 380px;
+}
+
+.grid-layout { display: grid; grid-template-columns: repeat(6, 1fr); grid-template-rows: repeat(8, 45px); gap: 8px; }
+
+.dj-set { grid-row: span 2; grid-column: 3 / 5; background: #111; border: 1px solid #444; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: .8rem; }
+
+.mesa { border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: .7rem; font-weight: bold; color: black; cursor: pointer; transition: .2s; }
+
+.mesa.selected { transform: scale(1.15); box-shadow: 0 0 15px white; border: 2px solid white; z-index: 5; }
+
+.m-r { background: var(--mesa-red); }
+.m-y { background: var(--mesa-yellow); }
+.m-o { background: var(--mesa-orange); }
+.m-b { background: var(--mesa-blue); }
+.m-t { background: var(--mesa-teal); }
+
+.metodo-pago { background: #0d0d0d; border: 1px solid #333; padding: 18px; border-radius: 15px; margin: 12px 0; display: flex; align-items: center; cursor: pointer; }
+.metodo-pago.active { border-color: var(--neon-cyan); background: rgba(0, 243, 255, 0.05); }
+/* Mesa ocupada: gris oscuro, sin brillo y con cursor de prohibido */
+.mesa.ocupada {
+    background-color: #222 !important;
+    color: #555 !important;
+    border: 1px solid #333 !important;
+    box-shadow: none !important;
+    cursor: not-allowed !important;
+    opacity: 0.6;
+}
+
+/* Mesa que tú estás tocando ahorita: neón brillante */
+.mesa.selected {
+    background-color: var(--neon-cyan) !important;
+    color: #000 !important;
+    box-shadow: 0 0 15px var(--neon-cyan), 0 0 30px var(--neon-cyan);
+    transform: scale(1.05);
+    border: 2px solid white !important;
+}
+
+/* Para que las transiciones de color se vean suaves */
+.mesa {
+    transition: all 0.2s ease-in-out;
+}

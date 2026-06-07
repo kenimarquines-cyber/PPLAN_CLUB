@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perfil</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="../css/perfil.css">
+    
+</head>
+<body>
+
+    <div class="phone">
+        <button id= "btn-regresar" class="btn-regresar"> ⬅ </button>
+        <a href="#" class="top-icon right" onclick="openNotificationModal()"><i class="fa-solid fa-bell"></i></a>
+
+            <div class="title">PERFIL</div>
+
+        <div class="profile-pic-container">
+            <div id="mainProfilePic" class="profile-img-preview">
+                <i class="fa-solid fa-user"></i>
+            </div>
+            <div class="edit-photo-pencil" onclick="openPhotoModal()">
+                <i class="fa-solid fa-pencil"></i>
+            </div>
+        </div>
+
+        <div class="field">
+            <label>NOMBRE</label>
+            <input type="text" id="input-nombre" placeholder="Escribe tu nombre">
+        </div>
+
+        <div class="field">
+            <label>APELLIDO</label>
+            <input type="text" id="input-apellido" placeholder="Escribe tu apellido">
+        </div>
+
+        <div class="field">
+            <label>CORREO.</label>
+            <input type="email" id="input-correo" placeholder="ejemplo@correo.com">
+        </div>
+
+        <div class="field">
+            <label>TELÉFONO</label>
+            <input type="text" id="input-telefono" placeholder="Tu número">
+        </div>
+
+        <button class="save-all-btn" onclick="saveAllData()">Guardar Cambios</button>
+    </div>
+
+    <div class="modal-overlay" id="photoEditModal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closePhotoModal()">&times;</span>
+            <p style="font-weight: bold;">ELEGIR FOTO DE PERFIL</p>
+            <div class="photo-grid">
+                <div class="profile-option" data-photo-src="../IMG/a.jpg" onclick="selectPhoto(this)"><img src="../IMG/a.jpg"></div>
+                <div class="profile-option" data-photo-src="../IMG/b.jpg" onclick="selectPhoto(this)"><img src="../IMG/b.jpg"></div>
+                <div class="profile-option" data-photo-src="../IMG/c.jpg" onclick="selectPhoto(this)"><img src="../IMG/c.jpg"></div>
+            </div>
+            <button class="save-btn" onclick="applyPhotoChange()">ACEPTAR</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="notificationModal">
+        <div class="notification-content">
+            <span class="close-notif" onclick="closeNotificationModal()">&times;</span>
+            <div class="notif-icon">
+                <i class="fa-solid fa-bell-slash"></i>
+            </div>
+            <h3>NOTIFICACIONES</h3>
+            <p>No tienes notificaciones pendientes por el momento.</p>
+            <button class="notif-btn" onclick="closeNotificationModal()">ENTENDIDO</button>
+        </div>
+    </div>
+
+    <script src="../js/perfil.js"></script>
+</body>
+</html>
