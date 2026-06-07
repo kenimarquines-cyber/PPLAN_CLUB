@@ -165,3 +165,18 @@ function togglePassword(inputId, icon) {
         icon.textContent = "🙈";
     }
 }
+
+// ❌ NO DEJES ESTO:
+// const URL_API = "https://tu-link-de-render.onrender.com"; 
+
+//  PON TU ENLACE REAL ASÍ:
+const URL_API = "https://pplan-club-tu-url-de-render.onrender.com"; 
+
+// Tu código para validar el registro debería usarlo así:
+fetch(`${URL_API}/guardar_registro`, {  // O la ruta exacta que definiste en app.py
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(datos)
+})
