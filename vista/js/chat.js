@@ -1,10 +1,26 @@
-// ── CONFIGURACIÓN GLOBAL Y UTILERÍAS ──────────────────
-// 1. Atajo global para seleccionar elementos por ID (Debe ir arriba del todo)
+// 1. Importamos las librerías oficiales de Firebase desde la CDN de Google
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getFirestore, doc, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+// 2. Tus credenciales reales de PlanClub extraídas de tu consola
+const firebaseConfig = {
+  apiKey: "AIzaSyDX6EWo3Y4M0a4bg0zmEF6DVU-ewd6aadE",
+  authDomain: "chatplanclub.firebaseapp.com",
+  projectId: "chatplanclub",
+  storageBucket: "chatplanclub.firebasestorage.app",
+  messagingSenderId: "495297083014",
+  appId: "1:495297083014:web:0e0d1b3e17e583840b0307"
+};
+
+// 3. Inicializamos Firebase y la base de datos Firestore en este archivo
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// ── CONFIGURACIÓN GLOBAL Y UTILERÍAS ──────────────────
 let roomId, roomCode, myId, myName, myRole;
 const $ = (id) => document.getElementById(id);
 
-// 2. Selección de los inputs del código (se ejecuta cuando carga el script)
+// Selección de los inputs del código (se ejecuta cuando carga el script)
 const digitInputs = document.querySelectorAll(".code-digit");
 
 
@@ -14,7 +30,7 @@ function mostrarCodigoCreado(code) {
   // Ocultar pantalla de acceso y mostrar pantalla de espera
   $("screen-access").classList.remove("active");
   $("screen-espera").classList.add("active");
-  $("screen-espera").style.display = "flex"; // Por si el CSS usa flexbox
+  $("screen-espera").style.display = "flex"; // Forzar renderizado visual
   
   // Inyectar los datos en las etiquetas del HTML
   $("espera-code").textContent = code;
@@ -56,12 +72,12 @@ async function crearSalaConCodigo(name) {
       fechaCreacion: new Date()
     });
 
-    toast("¡Sala creada con éxito!");
+    if (typeof toast === "function") toast("¡Sala creada con éxito!");
     mostrarCodigoCreado(code); 
 
   } catch(err) {
-    console.error(err);
-    toast("Error al crear la sala", true);
+    console.error("ERROR DETECTADO:", err);
+    alert("Error al crear la sala: " + err.message);
     btn.innerHTML = "<span>GENERAR CÓDIGO</span>"; 
     btn.disabled = false;
   }
@@ -73,7 +89,7 @@ function handleCrear() {
   const name = $("input-name-crear").value.trim();
   if (!name) { 
     $("input-name-crear").focus(); 
-    toast("Escribe tu nombre primero"); 
+    if (typeof toast === "function") toast("Escribe tu nombre primero"); 
     return; 
   }
   crearSalaConCodigo(name);
@@ -114,13 +130,13 @@ async function unirseConCodigo(name, code) {
     salaSnap = await getDoc(doc(db, "salas", roomId));
   } catch(err) {
     console.error(err);
-    toast("Error de conexión", true);
+    if (typeof toast === "function") toast("Error de conexión", true);
     btn.textContent = "UNIRME AL CHAT"; btn.disabled = false;
     return;
   }
 
   if (!salaSnap.exists()) {
-    toast("Código incorrecto — sala no encontrada", true);
+    if (typeof toast === "function") toast("Código incorrecto — sala no encontrada", true);
     digitInputs.forEach(d => { d.style.borderColor="#ff4455"; });
     setTimeout(() => digitInputs.forEach(d => { d.style.borderColor=""; }), 1500);
     btn.textContent = "UNIRME AL CHAT"; btn.disabled = false;
@@ -129,7 +145,7 @@ async function unirseConCodigo(name, code) {
 
   const sala = salaSnap.data();
   if (sala.estado !== "esperando" && sala.guestId !== myId && sala.hostId !== myId) {
-    toast("Esta sala ya está en uso", true);
+    if (typeof toast === "function") toast("Esta sala ya está en uso", true);
     btn.textContent = "UNIRME AL CHAT"; btn.disabled = false;
     return;
   }
@@ -141,20 +157,20 @@ async function unirseConCodigo(name, code) {
       estado:      "conectado"
     });
   } catch(err) {
-    toast("Error al unirse", true);
+    if (typeof toast === "function") toast("Error al unirse", true);
     btn.textContent = "UNIRME AL CHAT"; btn.disabled = false;
     return;
   }
 
-  abrirChat(sala.hostNombre);
+  if (typeof abrirChat === "function") abrirChat(sala.hostNombre);
 }
 
 // 2. Controlador del botón de Unirse
 function handleUnirse() {
   const name = $("input-name-unirse").value.trim();
-  if (!name) { $("input-name-unirse").focus(); toast("Escribe tu nombre primero"); return; }
+  if (!name) { $("input-name-unirse").focus(); if (typeof toast === "function") toast("Escribe tu nombre primero"); return; }
   const code = [...digitInputs].map(d => d.value).join("");
-  if (code.length < 6) { digitInputs[0].focus(); toast("Ingresa el código completo"); return; }
+  if (code.length < 6) { digitInputs[0].focus(); if (typeof toast === "function") toast("Ingresa el código completo"); return; }
   unirseConCodigo(name, code);
 }
 
@@ -185,7 +201,7 @@ digitInputs.forEach((inp, idx) => {
         unirseConCodigo(name, code);
       } else {
         $("input-name-unirse").focus();
-        toast("Escribe tu nombre primero");
+        if (typeof toast === "function") toast("Escribe tu nombre primero");
       }
     }
   });
