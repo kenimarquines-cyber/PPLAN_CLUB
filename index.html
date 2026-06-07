@@ -6,122 +6,103 @@
     <title>PlanClub - Premium Experience</title>
 
     <style>
-  #splash {
-    position: fixed; 
-    inset: 0;
-    background: #000;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 9999;
-    transition: opacity 0.5s ease;  
-  }
-  #splash.fade-out {
-    opacity: 0;
-    pointer-events: none;
-  }
+        #splash {
+            position: fixed; 
+            inset: 0;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;  
+        }
+        #splash.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
 
-  #splash .gooey-wrap {
-    position: absolute;
-    width: 260px;
-    height: 260px;
-    filter: url("#gooey");
-  }
+        #splash .gooey-wrap {
+            position: absolute;
+            width: 260px;
+            height: 260px;
+            filter: url("#gooey");
+        }
 
-  #splash .dot {
-    position: absolute;
-    width: 70px;
-    height: 70px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 35% 35%, #f0c040, #b8860b);
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    transition: top 1s cubic-bezier(.7,0,.3,1),
-                left 1s cubic-bezier(.7,0,.3,1),
-                width 1s ease, height 1s ease,
-                opacity 0.6s ease;
-  }
+        #splash .dot {
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #f0c040, #b8860b);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: top 1s cubic-bezier(.7,0,.3,1),
+                        left 1s cubic-bezier(.7,0,.3,1),
+                        width 1s ease, height 1s ease,
+                        opacity 0.6s ease;
+        }
 
-  #splash .logo-reveal {
-    position: absolute;
-    width: 180px;
-    height: 180px;
-    object-fit: contain;
-    opacity: 0;
-    /* Empieza centrado en pantalla */
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) scale(0.85);
-    transition: opacity 0.8s ease,
-                transform 0.8s ease,
-                top 0.9s cubic-bezier(.4,0,.2,1),
-                left 0.9s cubic-bezier(.4,0,.2,1);
-  }
+        #splash .logo-reveal {
+            position: absolute;
+            width: 180px;
+            height: 180px;
+            object-fit: contain;
+            opacity: 0;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.85);
+            transition: opacity 0.8s ease,
+                        transform 0.8s ease,
+                        top 0.9s cubic-bezier(.4,0,.2,1),
+                        left 0.9s cubic-bezier(.4,0,.2,1);
+        }
 
-  #splash .logo-reveal.show {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
+        #splash .logo-reveal.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
 
-  /* Cuando vuela hacia arriba */
-  #splash .logo-reveal.fly-up {
-    /* top: 40px padding-body + centrado del logo (180/2 = 90px) = ~130px desde el top */
-    top: 130px;
-    left: 50%;
-    transform: translate(-50%, 0) scale(1);
-    opacity: 1;
-  }
-</style>
+        #splash .logo-reveal.fly-up {
+            top: 130px;
+            left: 50%;
+            transform: translate(-50%, 0) scale(1);
+            opacity: 1;
+        }
+    </style>
 
-
-
-    <!-- Ruta corregida para salir de HTML y entrar a CSS -->
     <link rel="stylesheet" href="./vista/css/login.css">
 </head>
 
 <body>
 
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-</script>
-
     <div id="splash">
+        <svg width="0" height="0" style="position:absolute">
+            <filter id="gooey">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="10" />
+                <feColorMatrix values="
+                    1 0 0 0 0
+                    0 1 0 0 0
+                    0 0 1 0 0
+                    0 0 0 22 -11" />
+            </filter>
+        </svg>
 
-  <!-- Filtro SVG gooey -->
-  <svg width="0" height="0" style="position:absolute">
-    <filter id="gooey">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="10" />
-      <feColorMatrix values="
-        1 0 0 0 0
-        0 1 0 0 0
-        0 0 1 0 0
-        0 0 0 22 -11" />
-    </filter>
-  </svg>
+        <div class="gooey-wrap" id="gooeyWrap">
+            <div class="dot" id="d1"></div>
+            <div class="dot" id="d2"></div>
+            <div class="dot" id="d3"></div>
+            <div class="dot" id="d4"></div>
+            <div class="dot" id="d5"></div>
+            <div class="dot" id="d6"></div>
+        </div>
 
-  <!-- Círculos animados -->
-  <div class="gooey-wrap" id="gooeyWrap">
-    <div class="dot" id="d1"></div>
-    <div class="dot" id="d2"></div>
-    <div class="dot" id="d3"></div>
-    <div class="dot" id="d4"></div>
-    <div class="dot" id="d5"></div>
-    <div class="dot" id="d6"></div>
-  </div>
-
-  <!-- Logo PNG -->
-  <!-- ⚠️ CAMBIA ESTA RUTA por la de tu logo -->
-  <!-- Cambia logo.png por la imagen con glow -->
-<img class="logo-reveal" id="logoReveal" src="./vista/img/logo.png" alt="PlanClub">
-
-</div>
-</div>
+        <img class="logo-reveal" id="logoReveal" src="./vista/img/logo.png" alt="PlanClub">
+    </div>
 
     <div class="secret-trigger" onclick="abrirAdmin()"></div>
 
     <div class="logo-container">
-        <!-- RUTA CORREGIDA: Sale de HTML y entra a IMG -->
         <img src="./vista/img/logo.png" alt="Logo" class="logo-image">
         <div class="logo">PLANCLUB</div>
     </div>
@@ -132,7 +113,6 @@
         <button class="btn" onclick="showPanel('registerPanel')">REGISTRARSE</button>
     </div>
 
-    <!-- Panel de Login -->
     <div class="panel" id="loginPanel">
         <h2 style="margin-bottom: 20px; color: var(--champagne-main)">BIENVENIDO</h2>
         <div class="input-group"><input type="text" id="loginUser" placeholder="Usuario"></div>
@@ -149,7 +129,6 @@
         <div class="close" onclick="hidePanels()">VOLVER</div>
     </div>
 
-    <!-- Panel de Registro -->
     <div class="panel" id="registerPanel">
         <h2 style="margin-bottom: 20px; color: var(--champagne-main)">NUEVA CUENTA</h2>
         <div class="input-group"><input type="text" id="regUser" placeholder="Crea un Usuario"></div>
@@ -166,7 +145,6 @@
         <div class="close" onclick="hidePanels()">CANCELAR</div>
     </div>
 
-    <!-- Panel Admin -->
     <div class="panel" id="adminPanel">
         <h2 style="color: var(--champagne-main)">ADMIN CONTROL</h2>
         <div class="admin-list">
@@ -177,7 +155,6 @@
         <div class="close" onclick="hidePanels()">CERRAR GESTOR</div>
     </div>
 
-    <!-- Panel Recuperar -->
     <div class="panel" id="recoverPanel">
         <h2 style="margin-bottom: 20px; color: var(--champagne-main)">RECUPERAR CONTRASEÑA</h2>
         <div class="input-group"><input type="text" id="recoverUser" placeholder="Ingresa tu usuario"></div>
@@ -187,83 +164,88 @@
         <div class="close" onclick="hidePanels()">VOLVER</div>
     </div>
 
-    <!-- Ruta corregida para el Script -->
     <script src="./vista/js/login.js"></script>
+
     <script>
-(function () {
-  // 1. Órbita matemática perfectamente simétrica (distribución circular uniforme)
-  const orbits = [
-    { top: '15%', left: '50%' },  // Arriba centro
-    { top: '32%', left: '80%' },  // Arriba derecha
-    { top: '68%', left: '80%' },  // Abajo derecha
-    { top: '85%', left: '50%' },  // Abajo centro
-    { top: '68%', left: '20%' },  // Abajo izquierda
-    { top: '32%', left: '20%' }   // Arriba izquierda
-  ];
+    (function () {
+        const orbits = [
+            { top: '15%', left: '50%' },
+            { top: '32%', left: '80%' },
+            { top: '68%', left: '80%' },
+            { top: '85%', left: '50%' },
+            { top: '68%', left: '20%' },
+            { top: '32%', left: '20%' }
+        ];
 
-  const dots = [
-    document.getElementById('d1'),
-    document.getElementById('d2'),
-    document.getElementById('d3'),
-    document.getElementById('d4'),
-    document.getElementById('d5'),
-    document.getElementById('d6'),
-  ];
+        const dots = [
+            document.getElementById('d1'),
+            document.getElementById('d2'),
+            document.getElementById('d3'),
+            document.getElementById('d4'),
+            document.getElementById('d5'),
+            document.getElementById('d6'),
+        ];
 
-  const logoReveal = document.getElementById('logoReveal');
-  const logoReal   = document.querySelector('.logo-container');
+        const logoReveal = document.getElementById('logoReveal');
+        const logoReal   = document.querySelector('.logo-container');
 
-  // Ocultar logo real inicialmente
-  if (logoReal) logoReal.style.visibility = 'hidden';
+        if (logoReal) logoReal.style.visibility = 'hidden';
 
-  // FASE 1: Dispersión inmediata al arrancar
-  requestAnimationFrame(() => {
-    dots.forEach((dot, i) => {
-      dot.style.top  = orbits[i].top;
-      dot.style.left = orbits[i].left;
-    });
-  });
+        // FASE 1: Dispersión inmediata
+        requestAnimationFrame(() => {
+            dots.forEach((dot, i) => {
+                dot.style.top  = orbits[i].top;
+                dot.style.left = orbits[i].left;
+            });
+        });
 
-  // FASE 2 (A los 1.5s): Convergencia fluida al centro (reducimos el tiempo muerto)
-  setTimeout(() => {
-    dots.forEach(dot => {
-      dot.style.top    = '50%';
-      dot.style.left   = '50%';
-      dot.style.width  = '40px';
-      dot.style.height = '40px';
-    });
-  }, 1500);
+        // FASE 2: Convergencia al centro
+        setTimeout(() => {
+            dots.forEach(dot => {
+                dot.style.top    = '50%';
+                dot.style.left   = '50%';
+                dot.style.width  = '40px';
+                dot.style.height = '40px';
+            });
+        }, 1500);
 
-  // FASE 3 (A los 2.5s): Fusión de círculos y revelación inmediata del logo
-  setTimeout(() => {
-    dots.forEach(dot => { 
-      dot.style.transform = 'translate(-50%, -50%) scale(0)';
-      dot.style.opacity = '0'; 
-    });
-    logoReveal.classList.add('show');
-  }, 2500);
+        // FASE 3: Fusión y revelación de logo
+        setTimeout(() => {
+            dots.forEach(dot => { 
+                dot.style.transform = 'translate(-50%, -50%) scale(0)';
+                dot.style.opacity = '0'; 
+            });
+            logoReveal.classList.add('show');
+        }, 2500);
 
-  // FASE 4 (A los 3.4s): El logo vuela hacia arriba sin quedarse estancado
-  setTimeout(() => {
-    logoReveal.classList.remove('show');
-    logoReveal.classList.add('fly-up');
-  }, 3400);
+        // FASE 4: Vuelo del logo hacia arriba
+        setTimeout(() => {
+            logoReveal.classList.remove('show');
+            logoReveal.classList.add('fly-up');
+        }, 3400);
 
-  // FASE 5 (A los 4.2s): Desvanecer pantalla negra y activar interfaz real
-  setTimeout(() => {
-    const splash = document.getElementById('splash');
-    if (splash) {
-      splash.classList.add('fade-out');
-      setTimeout(() => {
-        if (logoReal) logoReal.style.visibility = 'visible';
-        splash.remove();
-      }, 400);
-    }
-  }, 4200);
+        // FASE 5: Desvanecer pantalla negra e interfaz real
+        setTimeout(() => {
+            const splash = document.getElementById('splash');
+            if (splash) {
+                splash.classList.add('fade-out');
+                setTimeout(() => {
+                    if (logoReal) logoReal.style.visibility = 'visible';
+                    splash.remove();
+                }, 400);
+            }
 
-})();
-</script>
+            // RECUERDA: Cambia esta URL por el enlace real que te dio Render arriba a la izquierda
+            const URL_API = "https://tu-link-de-render.onrender.com"; 
+            
+            // Prueba de conexión al backend
+            fetch(`${URL_API}/usuarios`)
+                .then(res => res.json())
+                .then(data => console.log("Backend conectado con éxito:", data))
+                .catch(err => console.error("Error conectando al backend de Render:", err));
 
-</script>
+        }, 4200);
+    })();
+    </script>
 </body>
 </html>
