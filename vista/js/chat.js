@@ -1,414 +1,448 @@
 /*
   ╔══════════════════════════════════════════════════════╗
-  ║                PLANCLUB VIP — chat.js                ║
-  ║       Chat real persona a persona via Flask/Render   ║
+  ║              PLANCLUB VIP — chat.js                  ║
+  ║       Chat en tiempo real con Firebase Firestore     ║
   ╚══════════════════════════════════════════════════════╝
+
+  IMPORTANTE: Este archivo usa Firebase Modular (v12).
+  El HTML ya importa Firebase y expone los helpers globalmente.
+  Este script se carga DESPUÉS del bloque <script type="module">
+  del HTML, que hace window.PCHAT = { db, helpers... }
 */
 
-// ─── CONFIGURACIÓN DE TU BACKEND EN RENDER ───────────────────
-const URL_API = "https://pplan-club.onrender.com"; // <-- Pon tu link real de Render sin "/" al final
-// ─────────────────────────────────────────────────────────────
-
-const VENDOR_CODE    = "1234";   // ← código para entrar como vendedor
-const MAX_CHATS      = 5;        // máximo chats simultáneos por vendedor
-
 // ═══════════════════════════════════════════════════════
-//   ESTADO GLOBAL
+//   ESPERAR A QUE FIREBASE ESTÉ LISTO
 // ═══════════════════════════════════════════════════════
-let myRole           = null;
-let myName           = '';
-let myId             = '';
-let currentChatId   = null;
-let clientRoomId    = null;
-let vendorChats     = {};   // { chatId: { name, unread, lastMsg } }
-let loopMensajes     = null; // Temporizador para traer mensajes nuevos
-let loopSidebar      = null; // Temporizador para la barra del vendedor
-
-// ═══════════════════════════════════════════════════════
-//   UTILIDADES
-// ═══════════════════════════════════════════════════════
-function uid(prefix) {
-  return (prefix || '') + Date.now().toString(36).toUpperCase() +
-         Math.random().toString(36).substr(2, 4).toUpperCase();
-}
-
-function now() {
-  return new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-}
-
-function initial(name) { return (name || '?')[0].toUpperCase(); }
-
-function esc(str) {
-  const d = document.createElement('div');
-  d.textContent = str || '';
-  return d.innerHTML;
-}
-
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-}
-
-function toast(msg, color) {
-  let wrap = document.getElementById('toast-wrap');
-  if (!wrap) {
-    wrap = document.createElement('div');
-    wrap.id = 'toast-wrap';
-    wrap.className = 'toast-container';
-    document.body.appendChild(wrap);
+// El módulo Firebase en el HTML expone window.PCHAT cuando
+// termina de inicializar. Esperamos ese evento.
+document.addEventListener("DOMContentLoaded", () => {
+  // Si el HTML modular ya corrió, PCHAT existe; si no, esperamos el evento.
+  if (window.PCHAT) {
+    initApp();
+  } else {
+    window.addEventListener("pchat-ready", initApp, { once: true });
   }
-  const t = document.createElement('div');
-  t.className = 'toast' + (color === 'p' ? ' purple' : '');
-  t.textContent = msg;
-  wrap.appendChild(t);
-  setTimeout(() => t.remove(), 3800);
-}
+});
 
-function beep() {
-  try {
-    const A = new (window.AudioContext || window.webkitAudioContext)();
-    const o = A.createOscillator(), g = A.createGain();
-    o.connect(g); g.connect(A.destination);
-    o.frequency.setValueAtTime(900, A.currentTime);
-    o.frequency.exponentialRampToValueAtTime(500, A.currentTime + 0.12);
-    g.gain.setValueAtTime(0.25, A.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, A.currentTime + 0.25);
-    o.start(); o.stop(A.currentTime + 0.25);
-  } catch(e) {}
-}
+function initApp() {
+  const { db, setDoc, addDoc, onSnapshot, collection, doc,
+          updateDoc, deleteDoc, query, orderBy } = window.PCHAT;
 
-function appendMsg(container, data, type) {
-  // Evitar duplicados visuales en pantalla
-  const msgId = data.ts || Date.now();
-  if (document.getElementById(`msg-${msgId}`)) return;
+  // ═══════════════════════════════════════════════════════
+  //   CONSTANTES
+  // ═══════════════════════════════════════════════════════
+  const VENDOR_CODE = "PLANCLUB2026";
+  const MAX_CHATS   = 5;
 
-  const row = document.createElement('div');
-  row.className = 'msg-row ' + type;
-  row.id = `msg-${msgId}`;
-  const sender = type === 'sent' ? 'Tú' : esc(data.senderName || data.role || 'Otro');
-  row.innerHTML =
-    `<div class="msg-sender">${sender}</div>` +
-    `<div class="msg-bubble">${esc(data.text || data.contenido)}</div>` +
-    `<div class="msg-time">${data.time || data.fecha || ''}</div>`;
-  container.appendChild(row);
-  container.scrollTop = container.scrollHeight;
-}
+  // ═══════════════════════════════════════════════════════
+  //   ESTADO GLOBAL
+  // ═══════════════════════════════════════════════════════
+  let myName          = "";
+  let myRole          = "cliente";  // 'cliente' | 'vendedor'
+  let myId            = "";
+  let activeRoomId    = null;
+  let unsubMessages   = null;  // limpiador oyente de mensajes
+  let unsubRoom       = null;  // limpiador oyente de sala (cliente)
+  let unsubRooms      = null;  // limpiador oyente de salas (vendedor)
 
-function sysMsg(container, text) {
-  const d = document.createElement('div');
-  d.className = 'sys-msg';
-  d.textContent = text;
-  container.appendChild(d);
-  container.scrollTop = container.scrollHeight;
-}
+  // ═══════════════════════════════════════════════════════
+  //   UTILIDADES
+  // ═══════════════════════════════════════════════════════
+  function uid() {
+    return Math.random().toString(36).substring(2, 9).toUpperCase();
+  }
 
-// ═══════════════════════════════════════════════════════
-//   PANTALLA ACCESO
-// ═══════════════════════════════════════════════════════
-let selectedRole = 'cliente';
+  function initial(name) { return (name || "?")[0].toUpperCase(); }
 
-document.querySelectorAll('.role-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    selectedRole = btn.dataset.role;
-    document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('vendor-code-group').style.display =
-      selectedRole === 'vendedor' ? 'block' : 'none';
+  function esc(str) {
+    const d = document.createElement("div");
+    d.textContent = str || "";
+    return d.innerHTML;
+  }
+
+  function showScreen(id) {
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    document.getElementById(id).classList.add("active");
+  }
+
+  function toast(msg, purple) {
+    let wrap = document.getElementById("toast-wrap");
+    if (!wrap) {
+      wrap = document.createElement("div");
+      wrap.id = "toast-wrap";
+      wrap.className = "toast-container";
+      document.body.appendChild(wrap);
+    }
+    const t = document.createElement("div");
+    t.className = "toast" + (purple ? " purple" : "");
+    t.textContent = msg;
+    wrap.appendChild(t);
+    setTimeout(() => t.remove(), 3800);
+  }
+
+  function beep() {
+    try {
+      const A = new (window.AudioContext || window.webkitAudioContext)();
+      const o = A.createOscillator(), g = A.createGain();
+      o.connect(g); g.connect(A.destination);
+      o.frequency.setValueAtTime(900, A.currentTime);
+      o.frequency.exponentialRampToValueAtTime(500, A.currentTime + 0.12);
+      g.gain.setValueAtTime(0.25, A.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, A.currentTime + 0.25);
+      o.start(); o.stop(A.currentTime + 0.25);
+    } catch (e) {}
+  }
+
+  function sysMsg(container, text) {
+    const d = document.createElement("div");
+    d.className = "sys-msg";
+    d.textContent = text;
+    container.appendChild(d);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //   PANTALLA DE ACCESO — SELECCIÓN DE ROL
+  // ═══════════════════════════════════════════════════════
+  const btnRoleCliente  = document.getElementById("btn-role-cliente");
+  const btnRoleVendedor = document.getElementById("btn-role-vendedor");
+  const vendorCodeGroup = document.getElementById("vendor-code-group");
+
+  // Compatibilidad con ambos estilos de botón (data-role o id)
+  function setRole(role) {
+    myRole = role;
+    document.querySelectorAll(".role-btn").forEach(b => b.classList.remove("active"));
+    const activeBtn = role === "cliente" ? btnRoleCliente : btnRoleVendedor;
+    if (activeBtn) activeBtn.classList.add("active");
+    vendorCodeGroup.style.display = role === "vendedor" ? "block" : "none";
+  }
+
+  if (btnRoleCliente)  btnRoleCliente.addEventListener("click",  () => setRole("cliente"));
+  if (btnRoleVendedor) btnRoleVendedor.addEventListener("click", () => setRole("vendedor"));
+
+  // Soporte para botones con data-role (versión antigua del HTML)
+  document.querySelectorAll(".role-btn[data-role]").forEach(btn => {
+    btn.addEventListener("click", () => setRole(btn.dataset.role));
   });
-});
 
-document.getElementById('btn-enter').addEventListener('click', handleEnter);
-document.getElementById('input-name').addEventListener('keydown', e => {
-  if (e.key === 'Enter') handleEnter();
-});
+  const btnEnter    = document.getElementById("btn-enter");
+  const inputName   = document.getElementById("input-name");
+  const inputCode   = document.getElementById("input-vendor-code");
 
-function handleEnter() {
-  const name = document.getElementById('input-name').value.trim();
-  if (!name) { document.getElementById('input-name').focus(); return; }
+  btnEnter.addEventListener("click", handleEnter);
+  inputName.addEventListener("keydown", e => { if (e.key === "Enter") handleEnter(); });
 
-  if (selectedRole === 'vendedor') {
-    const code = document.getElementById('input-vendor-code').value.trim();
-    if (code !== VENDOR_CODE) {
-      const inp = document.getElementById('input-vendor-code');
-      inp.style.borderColor = '#ff4466';
-      inp.style.boxShadow = '0 0 0 3px rgba(255,68,102,0.15)';
-      setTimeout(() => { inp.style.borderColor = ''; inp.style.boxShadow = ''; }, 1800);
-      toast('Código incorrecto', 'p');
-      return;
+  function handleEnter() {
+    const name = inputName.value.trim();
+    if (!name) { inputName.focus(); return; }
+
+    if (myRole === "vendedor") {
+      const code = inputCode ? inputCode.value.trim() : "";
+      if (code !== VENDOR_CODE) {
+        inputCode.style.borderColor = "#ff4466";
+        setTimeout(() => { inputCode.style.borderColor = ""; }, 1800);
+        toast("Código incorrecto", true);
+        return;
+      }
     }
+
+    myName = name;
+    myId   = "usr_" + uid();
+
+    myRole === "cliente" ? startClient() : startVendor();
   }
 
-  myName = name;
-  myRole = selectedRole;
-  myId = myRole === 'vendedor' ? 'PC' : uid('USR_'); // Forzamos 'PC' para el vendedor como en tu diseño
+  // ═══════════════════════════════════════════════════════
+  //   CLIENTE
+  // ═══════════════════════════════════════════════════════
+  async function startClient() {
+    showScreen("screen-cliente");
+    setClientStatus("waiting", "BUSCANDO VENDEDOR...");
 
-  myRole === 'cliente' ? startClient() : startVendor();
-}
+    // ID de sala basado en el ID único del cliente
+    activeRoomId = "room_" + myId;
 
-// ═══════════════════════════════════════════════════════
-//   CLIENTE — lógica adaptada a Flask
-// ═══════════════════════════════════════════════════════
-function startClient() {
-  showScreen('screen-cliente');
-  setClientStatus('waiting', 'BUSCANDO VENDEDOR...');
+    // Mostrar código de sala al cliente
+    const codeEl = document.getElementById("client-room-code");
+    if (codeEl) codeEl.textContent = myId;
 
-  clientRoomId = uid('CHAT_');
-  document.getElementById('client-room-code').textContent = clientRoomId;
-
-  // El cliente crea la sala en la base de datos de Render
-  fetch(`${URL_API}/api/chat/acceder`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      id_chat: clientRoomId,
-      usuario: myName,
-      rol: 'cliente'
-    })
-  })
-  .then(res => res.json())
-  .then(data => {
-    if (data.status === "success") {
-       // Empezamos a escuchar de forma repetitiva si el vendedor ya se unió a esta sala
-       loopMensajes = setInterval(verificarEstadoYMensajesCliente, 3000);
-    } else {
-       toast("Error al crear sala en el servidor");
-    }
-  })
-  .catch(err => console.error("Error:", err));
-}
-
-let clienteYaConectado = false;
-
-function verificarEstadoYMensajesCliente() {
-  // Como no hay sockets, simulamos consultando el historial del chat
-  fetch(`${URL_API}/api/chat/mensajes/${clientRoomId}`)
-  .then(res => res.json())
-  .then(mensajes => {
-    // Si ya hay mensajes o el servidor responde, asumimos canal establecido
-    if (!clienteYaConectado) {
-      clienteYaConectado = true;
-      openClientChat();
-    }
-    
-    const msgsContainer = document.getElementById('client-messages');
-    mensajes.forEach(msg => {
-      if (msg.remitente === myName) return; // Omitir propios
-      appendMsg(msgsContainer, msg, 'recv');
-    });
-  })
-  .catch(err => console.error(err));
-}
-
-function openClientChat() {
-  setClientStatus('online', 'VENDEDOR CONECTADO');
-  document.getElementById('client-waiting').style.display = 'none';
-  const msgs = document.getElementById('client-messages');
-  msgs.style.display = 'flex';
-
-  const bar = document.getElementById('client-input-bar');
-  bar.style.opacity = '1';
-  bar.style.pointerEvents = 'auto';
-
-  sysMsg(msgs, '— Canal VIP establecido —');
-
-  // Configurar botones de envío (limpiando listeners viejos)
-  const sendBtn = document.getElementById('client-send-btn');
-  const input   = document.getElementById('client-msg-input');
-  
-  sendBtn.replaceWith(sendBtn.cloneNode(true));
-  const newSendBtn = document.getElementById('client-send-btn');
-
-  function doSend() {
-    const text = input.value.trim();
-    if (!text) return;
-    
-    const msgData = {
-      id_chat: clientRoomId,
-      remitente: myName,
-      rol_remitente: 'cliente',
-      contenido: text
-    };
-
-    fetch(`${URL_API}/api/chat/mensaje`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(msgData)
-    })
-    .then(() => {
-      appendMsg(msgs, { text: text, senderName: 'Tú', time: now(), ts: Date.now() }, 'sent');
-      input.value = '';
-    });
-  }
-
-  newSendBtn.addEventListener('click', doSend);
-  input.addEventListener('keydown', e => { if (e.key === 'Enter') doSend(); });
-}
-
-function setClientStatus(dotClass, txt) {
-  const dot = document.getElementById('client-status-dot');
-  if (dot) dot.className = 'header-status-dot' + (dotClass ? ' ' + dotClass : '');
-  document.getElementById('client-status-txt').textContent = txt;
-}
-
-// ═══════════════════════════════════════════════════════
-//   VENDEDOR — lógica adaptada a Flask
-// ═══════════════════════════════════════════════════════
-function startVendor() {
-  showScreen('screen-vendedor');
-  document.getElementById('vendor-display-id').textContent = myId;
-
-  // Bucle para estar barriendo los chats asignados a este vendedor
-  loopSidebar = setInterval(actualizarSidebarVendedor, 3000);
-  
-  // Bucle para actualizar los mensajes del chat que tenga abierto en pantalla
-  loopMensajes = setInterval(actualizarMensajesVendedor, 2500);
-
-  const sendBtn = document.getElementById('vendor-send-btn');
-  const input   = document.getElementById('vendor-msg-input');
-  sendBtn.addEventListener('click', vendorSend);
-  input.addEventListener('keydown', e => { if (e.key === 'Enter') vendorSend(); });
-
-  document.getElementById('btn-terminate-chat').addEventListener('click', terminateChat);
-}
-
-function actualizarSidebarVendedor() {
-  fetch(`${URL_API}/api/chat/vendedor/${myId}`)
-  .then(res => res.json())
-  .then(chats => {
-    const list = document.getElementById('vendor-chat-list');
-    if (chats.length === 0) {
-      list.innerHTML = '<div class="no-chats-msg">Sin clientes activos</div>';
-      updateStats(0);
+    // Crear la sala en Firestore
+    try {
+      await setDoc(doc(db, "salas", activeRoomId), {
+        clienteId:      myId,
+        clienteNombre:  myName,
+        vendedorId:     null,
+        vendedorNombre: null,
+        estado:         "esperando",
+        fecha:          new Date()
+      });
+    } catch (err) {
+      toast("Error al conectar con el servidor");
+      console.error(err);
       return;
     }
 
-    // Guardar en nuestro estado global indexado
-    chats.forEach(c => {
-      if (!vendorChats[c.id_chat]) {
-        vendorChats[c.id_chat] = { name: c.id_cliente, unread: 0, lastMsg: c.ultimo_mensaje };
-        toast('✦ Nuevo cliente en cola: ' + c.id_cliente);
-      } else {
-        vendorChats[c.id_chat].lastMsg = c.ultimo_mensaje;
+    // Escuchar cambios en la sala para saber cuándo el vendedor se une
+    unsubRoom = onSnapshot(doc(db, "salas", activeRoomId), snap => {
+      if (!snap.exists()) return;
+      const data = snap.data();
+
+      if (data.estado === "atendido" && data.vendedorId) {
+        // Vendedor conectado ✓
+        setClientStatus("online", `Agente: ${data.vendedorNombre || "Vendedor"}`);
+        openClientChat();
+      }
+
+      if (data.estado === "terminado") {
+        sysMsg(document.getElementById("client-messages"), "— El vendedor ha cerrado este chat —");
+        setClientStatus("", "CHAT FINALIZADO");
+        lockInput("client-input-bar");
       }
     });
+  }
 
-    // Pintar la barra de WhatsApp
-    list.innerHTML = "";
-    chats.forEach(c => {
-      const item = makeChatItem(c.id_chat, c.id_cliente, c.ultimo_mensaje);
-      if (c.id_chat === currentChatId) item.classList.add('active');
-      list.appendChild(item);
-      item.addEventListener('click', () => openVendorChat(c.id_chat));
+  function openClientChat() {
+    document.getElementById("client-waiting").style.display = "none";
+    const msgs = document.getElementById("client-messages");
+    msgs.style.display = "flex";
+    const bar = document.getElementById("client-input-bar");
+    bar.style.opacity = "1";
+    bar.style.pointerEvents = "auto";
+    sysMsg(msgs, "— Canal VIP establecido —");
+    listenMessages(msgs);
+  }
+
+  function setClientStatus(dotClass, txt) {
+    const dot = document.getElementById("client-status-dot");
+    if (dot) dot.className = "header-status-dot" + (dotClass ? " " + dotClass : "");
+    const txtEl = document.getElementById("client-status-txt");
+    if (txtEl) txtEl.textContent = txt;
+  }
+
+  function lockInput(barId) {
+    const bar = document.getElementById(barId);
+    if (bar) { bar.style.opacity = "0.4"; bar.style.pointerEvents = "none"; }
+  }
+
+  // Enviar mensaje (cliente)
+  const clientSendBtn = document.getElementById("client-send-btn");
+  const clientMsgInput = document.getElementById("client-msg-input");
+  clientSendBtn.addEventListener("click", sendMessage);
+  clientMsgInput.addEventListener("keypress", e => { if (e.key === "Enter") sendMessage(); });
+
+  // ═══════════════════════════════════════════════════════
+  //   VENDEDOR
+  // ═══════════════════════════════════════════════════════
+  function startVendor() {
+    showScreen("screen-vendedor");
+    const displayId = document.getElementById("vendor-display-id");
+    if (displayId) displayId.textContent = myName.toUpperCase();
+
+    listenRooms();
+
+    const vendorSendBtn  = document.getElementById("vendor-send-btn");
+    const vendorMsgInput = document.getElementById("vendor-msg-input");
+    vendorSendBtn.addEventListener("click", sendMessage);
+    vendorMsgInput.addEventListener("keypress", e => { if (e.key === "Enter") sendMessage(); });
+
+    document.getElementById("btn-terminate-chat").addEventListener("click", terminateChat);
+  }
+
+  function listenRooms() {
+    // Escuchar TODAS las salas: esperando O atendidas por este vendedor
+    unsubRooms = onSnapshot(collection(db, "salas"), snap => {
+      const list = document.getElementById("vendor-chat-list");
+      list.innerHTML = "";
+
+      let countActive = 0;
+      let hayItems = false;
+      const knownIds = new Set();
+
+      snap.forEach(docSnap => {
+        const sala  = docSnap.data();
+        const salaId = docSnap.id;
+
+        // Solo mostrar: salas en espera O salas que este vendedor atiende
+        const esDeEsteVendedor = sala.vendedorId === myId;
+        const estaEnEspera     = sala.estado === "esperando";
+        const estaActiva       = sala.estado === "atendido" && esDeEsteVendedor;
+
+        if (!estaEnEspera && !estaActiva) return;
+
+        hayItems = true;
+        if (esDeEsteVendedor) countActive++;
+        knownIds.add(salaId);
+
+        const item = document.createElement("div");
+        item.className = `chat-item${salaId === activeRoomId ? " active" : ""}${estaEnEspera ? " waiting-item" : ""}`;
+        item.innerHTML =
+          `<div class="chat-avatar">${initial(sala.clienteNombre)}</div>` +
+          `<div class="chat-item-info">` +
+            `<div class="chat-item-name">${esc(sala.clienteNombre)}</div>` +
+            `<div class="chat-item-last">${estaEnEspera ? "◆ En espera" : "● Atendiendo"}</div>` +
+          `</div>`;
+
+        item.addEventListener("click", async () => {
+          // Si está en espera, el vendedor la toma
+          if (estaEnEspera) {
+            await updateDoc(doc(db, "salas", salaId), {
+              vendedorId:     myId,
+              vendedorNombre: myName,
+              estado:         "atendido"
+            });
+          }
+          selectRoom(salaId, sala.clienteNombre);
+
+          // Marcar item activo visualmente
+          document.querySelectorAll(".chat-item").forEach(i => i.classList.remove("active"));
+          item.classList.add("active");
+        });
+
+        list.appendChild(item);
+      });
+
+      if (!hayItems) {
+        list.innerHTML = '<div class="no-chats-msg">Sin clientes activos</div>';
+      }
+
+      // Si el chat activo ya no existe en Firestore, cerrar panel
+      if (activeRoomId && !knownIds.has(activeRoomId)) {
+        activeRoomId = null;
+        document.getElementById("vendor-active-chat").style.display = "none";
+        document.getElementById("vendor-placeholder").style.display = "flex";
+        if (unsubMessages) { unsubMessages(); unsubMessages = null; }
+      }
+
+      // Actualizar stats
+      const statActive    = document.getElementById("stat-active");
+      const statAvailable = document.getElementById("stat-available");
+      if (statActive)    statActive.textContent    = countActive;
+      if (statAvailable) statAvailable.textContent = Math.max(0, MAX_CHATS - countActive);
     });
+  }
 
-    updateStats(chats.length);
-  })
-  .catch(err => console.error(err));
-}
+  function selectRoom(salaId, clienteNombre) {
+    activeRoomId = salaId;
 
-function actualizarMensajesVendedor() {
-  if (!currentChatId) return;
+    document.getElementById("vendor-placeholder").style.display  = "none";
+    document.getElementById("vendor-active-chat").style.display  = "flex";
 
-  fetch(`${URL_API}/api/chat/mensajes/${currentChatId}`)
-  .then(res => res.json())
-  .then(mensajes => {
-    const container = document.getElementById('vendor-messages');
-    mensajes.forEach(m => {
-      if (m.remitente === myName) return; 
-      appendMsg(container, m, 'recv');
+    const vchatName   = document.getElementById("vchat-name");
+    const vchatAvatar = document.getElementById("vchat-avatar");
+    if (vchatName)   vchatName.textContent   = clienteNombre;
+    if (vchatAvatar) vchatAvatar.textContent = initial(clienteNombre);
+
+    const container = document.getElementById("vendor-messages");
+    container.innerHTML = "";
+    sysMsg(container, `— Chat con ${clienteNombre} —`);
+
+    listenMessages(container);
+    document.getElementById("vendor-msg-input").focus();
+  }
+
+  async function terminateChat() {
+    if (!activeRoomId) return;
+    if (!confirm("¿Terminar este chat?")) return;
+
+    // Marcar como terminado (no borrar: el cliente ve el mensaje de cierre)
+    await updateDoc(doc(db, "salas", activeRoomId), { estado: "terminado" });
+
+    activeRoomId = null;
+    document.getElementById("vendor-active-chat").style.display = "none";
+    document.getElementById("vendor-placeholder").style.display = "flex";
+    if (unsubMessages) { unsubMessages(); unsubMessages = null; }
+    toast("Chat cerrado con éxito");
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //   MENSAJERÍA COMPARTIDA (tiempo real)
+  // ═══════════════════════════════════════════════════════
+  function listenMessages(container) {
+    if (unsubMessages) unsubMessages();  // limpiar oyente anterior
+
+    const q = query(
+      collection(db, "salas", activeRoomId, "mensajes"),
+      orderBy("fecha", "asc")
+    );
+
+    // Mapa de IDs ya renderizados para no duplicar
+    const rendered = new Set();
+
+    unsubMessages = onSnapshot(q, snap => {
+      snap.docChanges().forEach(change => {
+        if (change.type !== "added") return;
+
+        const msgDoc = change.doc;
+        if (rendered.has(msgDoc.id)) return;
+        rendered.add(msgDoc.id);
+
+        const msg  = msgDoc.data();
+        const isMine = msg.remitenteId === myId;
+
+        const row = document.createElement("div");
+        row.className = "msg-row " + (isMine ? "sent" : "recv");
+
+        const senderLabel = isMine ? "Tú" : esc(msg.remitenteNombre || "");
+        const timeStr = msg.fecha?.toDate
+          ? msg.fecha.toDate().toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })
+          : "";
+
+        row.innerHTML =
+          `<div class="msg-sender">${senderLabel}</div>` +
+          `<div class="msg-bubble">${esc(msg.texto)}</div>` +
+          `<div class="msg-time">${timeStr}</div>`;
+
+        container.appendChild(row);
+        container.scrollTop = container.scrollHeight;
+
+        // Beep solo para mensajes recibidos nuevos
+        if (!isMine) beep();
+      });
     });
-  });
-}
+  }
 
-function openVendorChat(chatId) {
-  currentChatId = chatId;
-  const data = vendorChats[chatId];
-  if (!data) return;
+  async function sendMessage() {
+    if (!activeRoomId) return;
+    const input = myRole === "cliente"
+      ? document.getElementById("client-msg-input")
+      : document.getElementById("vendor-msg-input");
 
-  document.getElementById('vendor-placeholder').style.display = 'none';
-  document.getElementById('vendor-active-chat').style.display = 'flex';
+    const texto = input.value.trim();
+    if (!texto) return;
 
-  document.getElementById('vchat-name').textContent = data.name;
-  document.getElementById('vchat-avatar').textContent = initial(data.name);
-  document.getElementById('vchat-status').textContent = '● activo';
+    try {
+      await addDoc(collection(db, "salas", activeRoomId, "mensajes"), {
+        remitenteId:     myId,
+        remitenteNombre: myName,
+        texto:           texto,
+        fecha:           new Date()
+      });
+      input.value = "";
+    } catch (err) {
+      toast("Error al enviar el mensaje");
+      console.error(err);
+    }
+  }
 
-  const container = document.getElementById('vendor-messages');
-  container.innerHTML = '';
-  sysMsg(container, '— Chat con ' + data.name + ' —');
+  // ═══════════════════════════════════════════════════════
+  //   SALIR
+  // ═══════════════════════════════════════════════════════
+  async function exitSystem() {
+    if (!confirm("¿Salir del chat?")) return;
 
-  // Forzar carga de mensajes inicial
-  actualizarMensajesVendedor();
-  document.getElementById('vendor-msg-input').focus();
-}
+    if (unsubMessages) unsubMessages();
+    if (unsubRoom)     unsubRoom();
+    if (unsubRooms)    unsubRooms();
 
-function vendorSend() {
-  if (!currentChatId) return;
-  const input = document.getElementById('vendor-msg-input');
-  const text = input.value.trim();
-  if (!text) return;
+    // El cliente elimina su sala al salir
+    if (myRole === "cliente" && activeRoomId) {
+      try { await deleteDoc(doc(db, "salas", activeRoomId)); } catch (e) {}
+    }
 
-  const msgData = {
-    id_chat: currentChatId,
-    remitente: myName,
-    rol_remitente: 'vendedor',
-    contenido: text
-  };
+    location.reload();
+  }
 
-  fetch(`${URL_API}/api/chat/mensaje`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(msgData)
-  })
-  .then(() => {
-    appendMsg(document.getElementById('vendor-messages'), { text: text, senderName: 'Tú', time: now(), ts: Date.now() }, 'sent');
-    input.value = '';
-  });
-}
+  document.getElementById("btn-client-exit").addEventListener("click", exitSystem);
+  document.getElementById("btn-vendor-exit").addEventListener("click", exitSystem);
 
-function terminateChat() {
-  if (!currentChatId || !confirm('¿Terminar este chat?')) return;
-  
-  fetch(`${URL_API}/api/chat/terminar/${currentChatId}`, { method: 'POST' })
-  .then(() => {
-    toast('Chat cerrado con éxito');
-    delete vendorChats[currentChatId];
-    currentChatId = null;
-    document.getElementById('vendor-active-chat').style.display = 'none';
-    document.getElementById('vendor-placeholder').style.display = 'flex';
-    actualizarSidebarVendedor();
-  });
-}
-
-function updateStats(conteoActivos) {
-  document.getElementById('stat-active').textContent = conteoActivos;
-  document.getElementById('stat-available').textContent = Math.max(0, MAX_CHATS - conteoActivos);
-}
-
-function makeChatItem(chatId, name, lastMsg) {
-  const item = document.createElement('div');
-  item.className = 'chat-item';
-  item.id = 'ci-' + chatId;
-  item.innerHTML =
-    `<div class="chat-avatar">${initial(name)}</div>` +
-    `<div class="chat-item-info">` +
-      `<div class="chat-item-name">${esc(name)}</div>` +
-      `<div class="chat-item-last">${esc(lastMsg)}</div>` +
-    `</div>`;
-  return item;
-}
-
-// ═══════════════════════════════════════════════════════
-//   BOTONES SALIR
-// ═══════════════════════════════════════════════════════
-document.getElementById('btn-client-exit').addEventListener('click', () => {
-  if (!confirm('¿Salir del chat?')) return;
-  clearInterval(loopMensajes);
-  location.reload();
-});
-
-document.getElementById('btn-vendor-exit').addEventListener('click', () => {
-  if (!confirm('¿Cerrar sesión?')) return;
-  clearInterval(loopSidebar);
-  clearInterval(loopMensajes);
-  location.reload();
-});
+} // fin initApp

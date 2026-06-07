@@ -144,10 +144,23 @@ def acceder_chat():
         return jsonify({"status": "error", "mensaje": str(e)}), 500
 
 # 2. Listar todos los chats activos de un vendedor (Estilo WhatsApp)
+# 2. Listar todos los chats activos de un vendedor (¡Con auto-asignación estilo cola de espera!)
 @app.route('/api/chat/vendedor/<id_vendedor>', methods=['GET'])
 def listar_chats_vendedor(id_vendedor):
     try:
+        # 1. Buscar si hay algún cliente nuevo en cola que esté 'Esperando...' por un vendedor
+        chats_en_espera = Chat.query.filter_by(id_vendedor='Esperando...', estado="ACTIVO").all()
+        
+        # Si hay clientes libres, este vendedor se adueña de ellos automáticamente
+        for c_libre in chats_en_espera:
+            c_libre.id_vendedor = id_vendedor
+        
+        if chats_en_espera:
+            db.session.commit() # Guardamos los cambios de asignación en SQLite
+
+        # 2. Ahora sí, traemos todos los chats que le pertenecen a este vendedor
         chats = Chat.query.filter_by(id_vendedor=id_vendedor, estado="ACTIVO").all()
+        
         resultado = []
         for c in chats:
             # Obtener el último mensaje de este chat si existe
@@ -157,10 +170,11 @@ def listar_chats_vendedor(id_vendedor):
                 "id_cliente": c.id_cliente,
                 "ultimo_mensaje": ultimo_msg.contenido if ultimo_msg else "Chat iniciado sin mensajes"
             })
+            
         return jsonify(resultado), 200
     except Exception as e:
+        db.session.rollback()
         return jsonify({"status": "error", "mensaje": str(e)}), 500
-
 # 3. Enviar un mensaje
 @app.route('/api/chat/mensaje', methods=['POST'])
 def enviar_mensaje():
