@@ -11,9 +11,6 @@
 <div class="bg-layer"></div>
 <div class="grid-overlay"></div>
 
-<!-- ═══════════════════════════════════════════════════
-     PANTALLA 1 — ACCESO (nombre + rol)
-     ═══════════════════════════════════════════════════ -->
 <div id="screen-access" class="screen active">
   <div class="access-container">
 
@@ -26,7 +23,6 @@
       <div class="card-header-line"></div>
       <p class="access-subtitle">SELECCIONA TU MODO</p>
 
-      <!-- Selector de rol -->
       <div class="field-group">
         <label class="field-label">QUIERO</label>
         <div class="role-toggle">
@@ -39,7 +35,6 @@
         </div>
       </div>
 
-      <!-- Panel: Crear sala -->
       <div id="panel-crear" style="display:flex; flex-direction:column; gap:18px;">
         <div class="field-group">
           <label class="field-label">TU NOMBRE</label>
@@ -51,7 +46,6 @@
         </button>
       </div>
 
-      <!-- Panel: Unirse a sala (oculto por defecto) -->
       <div id="panel-unirse" style="display:none; flex-direction:column; gap:18px;">
         <div class="field-group">
           <label class="field-label">TU NOMBRE</label>
@@ -79,9 +73,6 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════
-     PANTALLA 2 — ESPERA (quien crea la sala)
-     ═══════════════════════════════════════════════════ -->
 <div id="screen-espera" class="screen">
   <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; gap:28px; padding:24px;">
 
@@ -117,12 +108,8 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════
-     PANTALLA 3 — CHAT ACTIVO
-     ═══════════════════════════════════════════════════ -->
 <div id="screen-chat" class="screen" style="flex-direction:column;">
 
-  <!-- Header -->
   <div class="chat-header">
     <div class="header-avatar" id="chat-peer-avatar">?</div>
     <div class="header-info">
@@ -142,10 +129,8 @@
     </button>
   </div>
 
-  <!-- Mensajes -->
   <div class="messages-area" id="messages-area"></div>
 
-  <!-- Input -->
   <div class="input-bar locked" id="input-bar">
     <input type="text" class="msg-input" id="msg-input" placeholder="Escribe tu mensaje..." autocomplete="off"/>
     <button class="send-btn" id="send-btn">
@@ -157,343 +142,7 @@
 
 </div>
 
-<!-- ═══════════════════════════════════════════════════
-     FIREBASE + LÓGICA (todo en un solo módulo)
-     ═══════════════════════════════════════════════════ -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import {
-  getFirestore, collection, doc,
-  setDoc, getDoc, addDoc, updateDoc, deleteDoc,
-  onSnapshot, query, orderBy, serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-const app = initializeApp({
-  apiKey:            "AIzaSyDX6EWo3Y4M0a4bgOzmEF6DVU-ewd6aadE",
-  authDomain:        "chatplanclub.firebaseapp.com",
-  projectId:         "chatplanclub",
-  storageBucket:     "chatplanclub.firebasestorage.app",
-  messagingSenderId: "495297083014",
-  appId:             "1:495297083014:web:0e0d1b3e17e583840b0307"
-});
-const db = getFirestore(app);
-
-/* ── ESTADO ─────────────────────────────────────────── */
-let myName    = "";
-let myId      = "";
-let myRole    = "host"; // 'host' | 'guest'
-let roomCode  = "";
-let roomId    = "";
-let unsubRoom = null;
-let unsubMsgs = null;
-const rendered = new Set();
-
-/* ── UTILS ──────────────────────────────────────────── */
-const $   = id => document.getElementById(id);
-const esc = s  => { const d = document.createElement("div"); d.textContent=s||""; return d.innerHTML; };
-const ini = n  => (n||"?")[0].toUpperCase();
-const uid = () => Math.random().toString(36).substring(2,9).toUpperCase();
-
-function showScreen(id) {
-  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
-  $(id).classList.add("active");
-}
-
-function toast(msg, isErr) {
-  let wrap = $("toast-wrap");
-  if (!wrap) {
-    wrap = document.createElement("div");
-    wrap.id = "toast-wrap"; wrap.className = "toast-container";
-    document.body.appendChild(wrap);
-  }
-  const t = document.createElement("div");
-  t.className = "toast" + (isErr ? " err" : "");
-  t.textContent = msg;
-  wrap.appendChild(t);
-  setTimeout(() => t.remove(), 3800);
-}
-
-function beep() {
-  try {
-    const A = new (window.AudioContext || window.webkitAudioContext)();
-    const o = A.createOscillator(), g = A.createGain();
-    o.connect(g); g.connect(A.destination);
-    o.frequency.setValueAtTime(880, A.currentTime);
-    o.frequency.exponentialRampToValueAtTime(520, A.currentTime + 0.1);
-    g.gain.setValueAtTime(0.2, A.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, A.currentTime + 0.22);
-    o.start(); o.stop(A.currentTime + 0.22);
-  } catch(e) {}
-}
-
-function sysMsg(text) {
-  const msgs = $("messages-area");
-  const d = document.createElement("div");
-  d.className = "sys-msg"; d.textContent = text;
-  msgs.appendChild(d);
-  msgs.scrollTop = msgs.scrollHeight;
-}
-
-/* ── SELECCIÓN DE ROL ───────────────────────────────── */
-document.querySelectorAll(".role-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".role-btn").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    const role = btn.dataset.role;
-    $("panel-crear").style.display  = role === "crear"  ? "flex" : "none";
-    $("panel-unirse").style.display = role === "unirse" ? "flex" : "none";
-  });
-});
-
-/* ── CREAR SALA ─────────────────────────────────────── */
-$("btn-crear").addEventListener("click", handleCrear);
-$("input-name-crear").addEventListener("keydown", e => { if (e.key==="Enter") handleCrear(); });
-
-async function handleCrear() {
-  const name = $("input-name-crear").value.trim();
-  if (!name) { $("input-name-crear").focus(); return; }
-
-  myName = name;
-  myId   = "usr_" + uid();
-  myRole = "host";
-  roomCode = Math.floor(100000 + Math.random() * 900000).toString();
-  roomId   = "sala_" + roomCode;
-
-  const btn = $("btn-crear");
-  const originalText = btn.innerHTML; // Guardamos el diseño original del botón (con el SVG)
-  btn.textContent = "Creando...";
-  btn.disabled = true;
-
-  try {
-    // Registramos la sala en Firestore
-    await setDoc(doc(db, "salas", roomId), {
-      hostId:      myId,
-      hostNombre:  myName,
-      guestId:     null,
-      guestNombre: null,
-      estado:      "esperando",
-      codigo:      roomCode,
-      creadaEn:    new Date().toISOString() // Usamos ISOString para evitar bloqueos de reglas con serverTimestamp
-    });
-
-    // Cambiamos de pantalla INMEDIATAMENTE tras el éxito de la promesa
-    showScreen("screen-espera");
-    $("espera-code").
-
-  // Escuchar hasta que el guest se una
-  unsubRoom = onSnapshot(doc(db, "salas", roomId), snap => {
-    if (!snap.exists()) return;
-    const data = snap.data();
-    if (data.estado === "conectado" && data.guestId) {
-      if (unsubRoom) { unsubRoom(); unsubRoom = null; }
-      abrirChat(data.guestNombre);
-    }
-  });
-}
-
-/* ── UNIRSE A SALA ──────────────────────────────────── */
-$("btn-unirse").addEventListener("click", handleUnirse);
-
-// Inputs de dígitos
-const digitInputs = document.querySelectorAll(".code-digit");
-digitInputs.forEach((inp, idx) => {
-  inp.addEventListener("input", () => {
-    inp.value = inp.value.replace(/\D/g,"").slice(-1);
-    if (inp.value && idx < digitInputs.length - 1) digitInputs[idx+1].focus();
-    inp.classList.toggle("filled", !!inp.value);
-    const code = [...digitInputs].map(d => d.value).join("");
-    if (code.length === 6) {
-      const name = $("input-name-unirse").value.trim();
-      if (name) unirseConCodigo(name, code);
-    }
-  });
-  inp.addEventListener("keydown", e => {
-    if (e.key === "Backspace" && !inp.value && idx > 0) {
-      digitInputs[idx-1].focus();
-      digitInputs[idx-1].value = "";
-      digitInputs[idx-1].classList.remove("filled");
-    }
-  });
-  inp.addEventListener("paste", e => {
-    e.preventDefault();
-    const text = (e.clipboardData||window.clipboardData).getData("text").replace(/\D/g,"").slice(0,6);
-    [...text].forEach((ch,i) => { if(digitInputs[i]) { digitInputs[i].value=ch; digitInputs[i].classList.add("filled"); } });
-    if (text.length === 6) {
-      const name = $("input-name-unirse").value.trim();
-      if (name) unirseConCodigo(name, text);
-    }
-  });
-});
-
-function handleUnirse() {
-  const name = $("input-name-unirse").value.trim();
-  if (!name) { $("input-name-unirse").focus(); toast("Escribe tu nombre primero"); return; }
-  const code = [...digitInputs].map(d => d.value).join("");
-  if (code.length < 6) { digitInputs[0].focus(); toast("Ingresa el código completo"); return; }
-  unirseConCodigo(name, code);
-}
-
-async function unirseConCodigo(name, code) {
-  myName = name;
-  myId   = "usr_" + uid();
-  myRole = "guest";
-  roomCode = code;
-  roomId   = "sala_" + code;
-
-  const btn = $("btn-unirse");
-  btn.textContent = "Conectando...";
-  btn.disabled = true;
-
-  let salaSnap;
-  try {
-    salaSnap = await getDoc(doc(db, "salas", roomId));
-  } catch(err) {
-    toast("Error de conexión", true);
-    btn.textContent = "UNIRME AL CHAT"; btn.disabled = false;
-    return;
-  }
-
-  if (!salaSnap.exists()) {
-    toast("Código incorrecto — sala no encontrada", true);
-    digitInputs.forEach(d => { d.style.borderColor="#ff4455"; });
-    setTimeout(() => digitInputs.forEach(d => { d.style.borderColor=""; }), 1500);
-    btn.textContent = "UNIRME AL CHAT"; btn.disabled = false;
-    return;
-  }
-
-  const sala = salaSnap.data();
-  if (sala.estado !== "esperando") {
-    toast("Esta sala ya está en uso o fue cerrada", true);
-    btn.textContent = "UNIRME AL CHAT"; btn.disabled = false;
-    return;
-  }
-
-  try {
-    await updateDoc(doc(db, "salas", roomId), {
-      guestId:     myId,
-      guestNombre: myName,
-      estado:      "conectado"
-    });
-  } catch(err) {
-    toast("Error al unirse: " + err.message, true);
-    btn.textContent = "UNIRME AL CHAT"; btn.disabled = false;
-    return;
-  }
-
-  abrirChat(sala.hostNombre);
-}
-
-/* ── ABRIR CHAT ─────────────────────────────────────── */
-function abrirChat(otroNombre) {
-  showScreen("screen-chat");
-
-  $("chat-peer-avatar").textContent = ini(otroNombre);
-  $("chat-peer-name").textContent   = otroNombre;
-  $("chat-room-code").textContent   = "# " + roomCode;
-  $("chat-status-dot").className    = "status-dot online";
-  $("chat-status-txt").textContent  = "conectado";
-  $("input-bar").classList.remove("locked");
-
-  sysMsg("— Conexión establecida · sala " + roomCode + " —");
-
-  listenMensajes();
-
-  // Detectar si el otro cierra
-  unsubRoom = onSnapshot(doc(db, "salas", roomId), snap => {
-    if (!snap.exists() || snap.data().estado === "cerrado") {
-      sysMsg("— El otro participante salió del chat —");
-      $("chat-status-dot").className  = "status-dot";
-      $("chat-status-txt").textContent = "desconectado";
-      $("input-bar").classList.add("locked");
-    }
-  });
-}
-
-/* ── MENSAJES ───────────────────────────────────────── */
-function listenMensajes() {
-  if (unsubMsgs) unsubMsgs();
-  rendered.clear();
-
-  const q = query(
-    collection(db, "salas", roomId, "mensajes"),
-    orderBy("fecha", "asc")
-  );
-
-  unsubMsgs = onSnapshot(q, snap => {
-    snap.docChanges().forEach(change => {
-      if (change.type !== "added") return;
-      const msgDoc = change.doc;
-      if (rendered.has(msgDoc.id)) return;
-      rendered.add(msgDoc.id);
-
-      const msg    = msgDoc.data();
-      const isMine = msg.autorId === myId;
-      const msgs   = $("messages-area");
-
-      const row = document.createElement("div");
-      row.className = "msg-row " + (isMine ? "sent" : "recv");
-
-      const timeStr = msg.fecha?.toDate
-        ? msg.fecha.toDate().toLocaleTimeString("es-CO", { hour:"2-digit", minute:"2-digit" })
-        : "";
-
-      row.innerHTML =
-        `<div class="msg-sender">${isMine ? "Tú" : esc(msg.autor)}</div>` +
-        `<div class="msg-bubble">${esc(msg.texto)}</div>` +
-        `<div class="msg-time">${timeStr}</div>`;
-
-      msgs.appendChild(row);
-      msgs.scrollTop = msgs.scrollHeight;
-      if (!isMine) beep();
-    });
-  });
-}
-
-async function sendMsg() {
-  if (!roomId) return;
-  const input = $("msg-input");
-  const texto = input.value.trim();
-  if (!texto) return;
-  try {
-    await addDoc(collection(db, "salas", roomId, "mensajes"), {
-      autorId: myId,
-      autor:   myName,
-      texto:   texto,
-      fecha:   serverTimestamp()
-    });
-    input.value = "";
-  } catch(err) {
-    toast("Error al enviar", true);
-  }
-}
-
-$("send-btn").addEventListener("click", sendMsg);
-$("msg-input").addEventListener("keypress", e => { if (e.key==="Enter") sendMsg(); });
-
-/* ── SALIR ──────────────────────────────────────────── */
-async function salir() {
-  if (!confirm("¿Cerrar el chat?")) return;
-  if (unsubMsgs) unsubMsgs();
-  if (unsubRoom) unsubRoom();
-  if (roomId) {
-    try {
-      await updateDoc(doc(db, "salas", roomId), { estado: "cerrado" });
-      setTimeout(async () => {
-        try { await deleteDoc(doc(db, "salas", roomId)); } catch(e) {}
-      }, 5000);
-    } catch(e) {}
-  }
-  location.reload();
-}
-
-$("btn-exit-espera").addEventListener("click", async () => {
-  if (unsubRoom) unsubRoom();
-  if (roomId) { try { await deleteDoc(doc(db, "salas", roomId)); } catch(e) {} }
-  location.reload();
-});
-
-$("btn-exit-chat").addEventListener("click", salir);
-</script>
+<script type="module" src="../js/chat.js"></script>
 
 </body>
 </html>
