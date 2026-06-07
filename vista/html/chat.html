@@ -260,10 +260,12 @@ async function handleCrear() {
   roomId   = "sala_" + roomCode;
 
   const btn = $("btn-crear");
+  const originalText = btn.innerHTML; // Guardamos el diseño original del botón (con el SVG)
   btn.textContent = "Creando...";
   btn.disabled = true;
 
   try {
+    // Registramos la sala en Firestore
     await setDoc(doc(db, "salas", roomId), {
       hostId:      myId,
       hostNombre:  myName,
@@ -271,19 +273,12 @@ async function handleCrear() {
       guestNombre: null,
       estado:      "esperando",
       codigo:      roomCode,
-      creadaEn:    serverTimestamp()
+      creadaEn:    new Date().toISOString() // Usamos ISOString para evitar bloqueos de reglas con serverTimestamp
     });
-  } catch(err) {
-    toast("Error: " + err.message, true);
-    console.error(err);
-    btn.textContent = "GENERAR CÓDIGO";
-    btn.disabled = false;
-    return;
-  }
 
-  showScreen("screen-espera");
-  $("espera-code").textContent = roomCode;
-  $("espera-name").textContent = myName;
+    // Cambiamos de pantalla INMEDIATAMENTE tras el éxito de la promesa
+    showScreen("screen-espera");
+    $("espera-code").
 
   // Escuchar hasta que el guest se una
   unsubRoom = onSnapshot(doc(db, "salas", roomId), snap => {
