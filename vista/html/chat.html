@@ -9,54 +9,6 @@
 </head>
 <body>
 
-<!-- =========================================================
-     1. FIREBASE INIT — expone window.PCHAT para chat.js
-     ========================================================= -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
-  import {
-    getFirestore,
-    collection, doc,
-    setDoc, addDoc,
-    onSnapshot,
-    query, orderBy,
-    updateDoc, deleteDoc, where
-  } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyDX6EWo3Y4M0a4bgOzmEF6DVU-ewd6aadE",
-    authDomain: "chatplanclub.firebaseapp.com",
-    projectId: "chatplanclub",
-    storageBucket: "chatplanclub.firebasestorage.app",
-    messagingSenderId: "495297083014",
-    appId: "1:495297083014:web:0e0d1b3e17e583840b0307"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db  = getFirestore(app);
-
-  // Exponer todo lo necesario en window.PCHAT para que chat.js lo use
-  window.PCHAT = {
-    db,
-    setDoc, addDoc,
-    onSnapshot,
-    collection, doc,
-    query, orderBy,
-    updateDoc, deleteDoc, where
-  };
-
-  // Avisar a chat.js que Firebase está listo
-  window.dispatchEvent(new Event("pchat-ready"));
-</script>
-
-<!-- =========================================================
-     2. LÓGICA DEL CHAT (usa window.PCHAT)
-     ========================================================= -->
-<script src="../js/chat.js" defer></script>
-
-<!-- =========================================================
-     3. HTML DE LA INTERFAZ (sin cambios)
-     ========================================================= -->
 <div class="bg-layer"></div>
 <div class="grid-overlay"></div>
 
@@ -67,16 +19,13 @@
       <span class="brand-name">PLANCLUB</span>
       <span class="brand-tag">VIP SYSTEM</span>
     </div>
-
     <div class="access-card">
       <div class="card-header-line"></div>
       <p class="access-subtitle">PROTOCOLO DE ACCESO</p>
-
       <div class="field-group">
         <label class="field-label">TU NOMBRE</label>
         <input class="neon-input" id="input-name" type="text" placeholder="Ej: Diego, Laura..."/>
       </div>
-
       <div class="field-group">
         <label class="field-label">ACCEDER COMO</label>
         <div class="role-toggle">
@@ -88,18 +37,14 @@
           </button>
         </div>
       </div>
-
       <div class="field-group" id="vendor-code-group" style="display:none;">
         <label class="field-label">CÓDIGO DE VENDEDOR</label>
         <input class="neon-input" id="input-vendor-code" type="password" placeholder="Código secreto..."/>
-        <span class="field-hint">Código de acceso requerido</span>
+        <span class="field-hint">Código: PLANCLUB2026</span>
       </div>
-
       <button class="enter-btn" id="btn-enter">
         <span>INICIAR SESIÓN</span>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <path d="M5 12h14M12 5l7 7-7 7"/>
-        </svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </button>
     </div>
   </div>
@@ -115,37 +60,24 @@
         <span class="header-status-txt" id="client-status-txt">Conectando...</span>
       </div>
       <button class="icon-btn" id="btn-client-exit" title="Salir">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-          <polyline points="16 17 21 12 16 7"/>
-          <line x1="21" y1="12" x2="9" y2="12"/>
-        </svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       </button>
     </div>
-
-    <div class="client-chat-area" id="client-chat-area">
+    <div class="client-chat-area">
       <div class="waiting-state" id="client-waiting">
         <div class="waiting-anim">
-          <div class="pulse-ring"></div>
-          <div class="pulse-ring delay1"></div>
-          <div class="pulse-ring delay2"></div>
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1.5">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
+          <div class="pulse-ring"></div><div class="pulse-ring delay1"></div><div class="pulse-ring delay2"></div>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         </div>
         <p class="waiting-title">Buscando un vendedor disponible</p>
         <p class="waiting-sub">Tu código: <span class="code-badge" id="client-room-code">—</span></p>
       </div>
-
       <div class="messages-list" id="client-messages" style="display:none;"></div>
     </div>
-
-    <div class="client-input-bar" id="client-input-bar" style="opacity:0.4; pointer-events:none;">
+    <div class="client-input-bar" id="client-input-bar" style="opacity:0.4;pointer-events:none;">
       <input type="text" class="msg-input" id="client-msg-input" placeholder="Escribe tu mensaje..." autocomplete="off"/>
       <button class="send-btn" id="client-send-btn">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/>
-        </svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
       </button>
     </div>
   </div>
@@ -159,47 +91,29 @@
         <span class="brand-name-sm">PLANCLUB</span>
         <div class="vendor-badge">VENDEDOR</div>
       </div>
-
       <div class="sidebar-section-title">CHATS ACTIVOS</div>
       <div class="chat-list" id="vendor-chat-list">
         <div class="no-chats-msg">Sin clientes activos</div>
       </div>
-
       <div class="sidebar-section-title" style="margin-top:auto;">MI ESTADO</div>
       <div class="vendor-stats">
-        <div class="stat-item">
-          <span class="stat-num" id="stat-active">0</span>
-          <span class="stat-lbl">activos</span>
-        </div>
+        <div class="stat-item"><span class="stat-num" id="stat-active">0</span><span class="stat-lbl">activos</span></div>
         <div class="stat-divider"></div>
-        <div class="stat-item">
-          <span class="stat-num" id="stat-max">5</span>
-          <span class="stat-lbl">máx</span>
-        </div>
+        <div class="stat-item"><span class="stat-num" id="stat-max">5</span><span class="stat-lbl">máx</span></div>
         <div class="stat-divider"></div>
-        <div class="stat-item">
-          <span class="stat-num" id="stat-available">5</span>
-          <span class="stat-lbl">libres</span>
-        </div>
+        <div class="stat-item"><span class="stat-num" id="stat-available">5</span><span class="stat-lbl">libres</span></div>
       </div>
-
       <button class="sidebar-exit-btn" id="btn-vendor-exit">← Cerrar sesión</button>
     </div>
-
     <div class="vendor-chat-panel">
       <div class="vendor-placeholder" id="vendor-placeholder">
         <div class="placeholder-icon">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         </div>
         <p class="placeholder-title">ESPERANDO CLIENTES</p>
         <p class="placeholder-sub">Los clientes aparecen automáticamente en la lista de la izquierda</p>
-        <div class="vendor-available-code">
-          Sesión activa como: <span id="vendor-display-id">—</span>
-        </div>
+        <div class="vendor-available-code">Sesión activa como: <span id="vendor-display-id">—</span></div>
       </div>
-
       <div class="vendor-active-chat" id="vendor-active-chat" style="display:none;">
         <div class="vendor-chat-header">
           <div class="vchat-avatar" id="vchat-avatar">C</div>
@@ -213,15 +127,361 @@
         <div class="vendor-input-bar">
           <input type="text" class="msg-input" id="vendor-msg-input" placeholder="Responde al cliente..." autocomplete="off"/>
           <button class="send-btn" id="vendor-send-btn">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/>
-            </svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
           </button>
         </div>
       </div>
     </div>
   </div>
 </div>
+
+<!-- =========================================================
+     TODA LA LÓGICA EN UN SOLO SCRIPT MODULE — sin race condition
+     ========================================================= -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getFirestore, collection, doc,
+  setDoc, addDoc, updateDoc, deleteDoc,
+  onSnapshot, query, orderBy
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// ── FIREBASE CONFIG ──────────────────────────────────────
+const app = initializeApp({
+  apiKey:            "AIzaSyDX6EWo3Y4M0a4bgOzmEF6DVU-ewd6aadE",
+  authDomain:        "chatplanclub.firebaseapp.com",
+  projectId:         "chatplanclub",
+  storageBucket:     "chatplanclub.firebasestorage.app",
+  messagingSenderId: "495297083014",
+  appId:             "1:495297083014:web:0e0d1b3e17e583840b0307"
+});
+const db = getFirestore(app);
+
+// ── CONSTANTES ───────────────────────────────────────────
+const VENDOR_CODE = "PLANCLUB2026";
+const MAX_CHATS   = 5;
+
+// ── ESTADO ───────────────────────────────────────────────
+let myName        = "";
+let myRole        = "cliente";
+let myId          = "";
+let activeRoomId  = null;
+let unsubMessages = null;
+let unsubRoom     = null;
+let unsubRooms    = null;
+
+// ── UTILIDADES ───────────────────────────────────────────
+const uid  = () => Math.random().toString(36).substring(2, 9).toUpperCase();
+const ini  = n  => (n || "?")[0].toUpperCase();
+const esc  = s  => { const d = document.createElement("div"); d.textContent = s||""; return d.innerHTML; };
+const $    = id => document.getElementById(id);
+
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  $(id).classList.add("active");
+}
+
+function toast(msg, purple) {
+  let wrap = $("toast-wrap");
+  if (!wrap) {
+    wrap = document.createElement("div");
+    wrap.id = "toast-wrap";
+    wrap.className = "toast-container";
+    document.body.appendChild(wrap);
+  }
+  const t = document.createElement("div");
+  t.className = "toast" + (purple ? " purple" : "");
+  t.textContent = msg;
+  wrap.appendChild(t);
+  setTimeout(() => t.remove(), 3800);
+}
+
+function beep() {
+  try {
+    const A = new (window.AudioContext || window.webkitAudioContext)();
+    const o = A.createOscillator(), g = A.createGain();
+    o.connect(g); g.connect(A.destination);
+    o.frequency.setValueAtTime(900, A.currentTime);
+    o.frequency.exponentialRampToValueAtTime(500, A.currentTime + 0.12);
+    g.gain.setValueAtTime(0.25, A.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, A.currentTime + 0.25);
+    o.start(); o.stop(A.currentTime + 0.25);
+  } catch(e) {}
+}
+
+function sysMsg(container, text) {
+  const d = document.createElement("div");
+  d.className = "sys-msg";
+  d.textContent = text;
+  container.appendChild(d);
+  container.scrollTop = container.scrollHeight;
+}
+
+// ── PANTALLA ACCESO ──────────────────────────────────────
+$("btn-role-cliente").addEventListener("click", () => setRole("cliente"));
+$("btn-role-vendedor").addEventListener("click", () => setRole("vendedor"));
+
+function setRole(role) {
+  myRole = role;
+  document.querySelectorAll(".role-btn").forEach(b => b.classList.remove("active"));
+  $(role === "cliente" ? "btn-role-cliente" : "btn-role-vendedor").classList.add("active");
+  $("vendor-code-group").style.display = role === "vendedor" ? "block" : "none";
+}
+
+$("btn-enter").addEventListener("click", handleEnter);
+$("input-name").addEventListener("keydown", e => { if (e.key === "Enter") handleEnter(); });
+
+function handleEnter() {
+  const name = $("input-name").value.trim();
+  if (!name) { $("input-name").focus(); return; }
+
+  if (myRole === "vendedor") {
+    const code = $("input-vendor-code").value.trim();
+    if (code !== VENDOR_CODE) {
+      $("input-vendor-code").style.borderColor = "#ff4466";
+      setTimeout(() => { $("input-vendor-code").style.borderColor = ""; }, 1800);
+      toast("Código incorrecto", true);
+      return;
+    }
+  }
+
+  myName = name;
+  myId   = "usr_" + uid();
+  myRole === "cliente" ? startClient() : startVendor();
+}
+
+// ── CLIENTE ──────────────────────────────────────────────
+async function startClient() {
+  showScreen("screen-cliente");
+  setClientStatus("waiting", "BUSCANDO VENDEDOR...");
+
+  activeRoomId = "room_" + myId;
+  $("client-room-code").textContent = myId;
+
+  try {
+    await setDoc(doc(db, "salas", activeRoomId), {
+      clienteId:      myId,
+      clienteNombre:  myName,
+      vendedorId:     null,
+      vendedorNombre: null,
+      estado:         "esperando",
+      fecha:          new Date()
+    });
+    console.log("✅ Sala creada:", activeRoomId);
+  } catch (err) {
+    console.error("❌ Error creando sala:", err);
+    toast("Error al conectar. Revisa la consola.");
+    return;
+  }
+
+  // Escuchar cambios en la sala para saber cuándo entra el vendedor
+  unsubRoom = onSnapshot(doc(db, "salas", activeRoomId), snap => {
+    if (!snap.exists()) return;
+    const data = snap.data();
+    console.log("📡 Estado sala:", data.estado, "vendedor:", data.vendedorId);
+
+    if (data.estado === "atendido" && data.vendedorId) {
+      setClientStatus("online", `Agente: ${data.vendedorNombre || "Vendedor"}`);
+      openClientChat();
+    }
+    if (data.estado === "terminado") {
+      sysMsg($("client-messages"), "— El vendedor ha cerrado este chat —");
+      setClientStatus("", "CHAT FINALIZADO");
+      $("client-input-bar").style.opacity = "0.4";
+      $("client-input-bar").style.pointerEvents = "none";
+    }
+  });
+}
+
+function openClientChat() {
+  $("client-waiting").style.display = "none";
+  $("client-messages").style.display = "flex";
+  $("client-input-bar").style.opacity = "1";
+  $("client-input-bar").style.pointerEvents = "auto";
+  sysMsg($("client-messages"), "— Canal VIP establecido —");
+  listenMessages($("client-messages"));
+}
+
+function setClientStatus(dotClass, txt) {
+  const dot = $("client-status-dot");
+  dot.className = "header-status-dot" + (dotClass ? " " + dotClass : "");
+  $("client-status-txt").textContent = txt;
+}
+
+$("client-send-btn").addEventListener("click", sendMessage);
+$("client-msg-input").addEventListener("keypress", e => { if (e.key === "Enter") sendMessage(); });
+
+// ── VENDEDOR ─────────────────────────────────────────────
+function startVendor() {
+  showScreen("screen-vendedor");
+  $("vendor-display-id").textContent = myName.toUpperCase();
+  listenRooms();
+
+  $("vendor-send-btn").addEventListener("click", sendMessage);
+  $("vendor-msg-input").addEventListener("keypress", e => { if (e.key === "Enter") sendMessage(); });
+  $("btn-terminate-chat").addEventListener("click", terminateChat);
+}
+
+function listenRooms() {
+  unsubRooms = onSnapshot(collection(db, "salas"), snap => {
+    const list = $("vendor-chat-list");
+    list.innerHTML = "";
+    let countActive = 0;
+    let hayItems = false;
+    const knownIds = new Set();
+
+    snap.forEach(docSnap => {
+      const sala   = docSnap.data();
+      const salaId = docSnap.id;
+
+      const esDeEsteVendedor = sala.vendedorId === myId;
+      const estaEnEspera     = sala.estado === "esperando";
+      const estaActiva       = sala.estado === "atendido" && esDeEsteVendedor;
+
+      if (!estaEnEspera && !estaActiva) return;
+
+      hayItems = true;
+      knownIds.add(salaId);
+      if (esDeEsteVendedor && estaActiva) countActive++;
+
+      const item = document.createElement("div");
+      item.className = `chat-item${salaId === activeRoomId ? " active" : ""}${estaEnEspera ? " waiting-item" : ""}`;
+      item.innerHTML =
+        `<div class="chat-avatar">${ini(sala.clienteNombre)}</div>` +
+        `<div class="chat-item-info">` +
+          `<div class="chat-item-name">${esc(sala.clienteNombre)}</div>` +
+          `<div class="chat-item-last">${estaEnEspera ? "◆ En espera" : "● Atendiendo"}</div>` +
+        `</div>`;
+
+      item.addEventListener("click", async () => {
+        if (estaEnEspera) {
+          await updateDoc(doc(db, "salas", salaId), {
+            vendedorId:     myId,
+            vendedorNombre: myName,
+            estado:         "atendido"
+          });
+          console.log("✅ Vendedor tomó el chat:", salaId);
+        }
+        selectRoom(salaId, sala.clienteNombre);
+        document.querySelectorAll(".chat-item").forEach(i => i.classList.remove("active"));
+        item.classList.add("active");
+      });
+
+      list.appendChild(item);
+    });
+
+    if (!hayItems) {
+      list.innerHTML = '<div class="no-chats-msg">Sin clientes activos</div>';
+    }
+
+    // Si el chat activo fue eliminado, cerrar panel
+    if (activeRoomId && !knownIds.has(activeRoomId)) {
+      activeRoomId = null;
+      $("vendor-active-chat").style.display = "none";
+      $("vendor-placeholder").style.display = "flex";
+      if (unsubMessages) { unsubMessages(); unsubMessages = null; }
+    }
+
+    $("stat-active").textContent    = countActive;
+    $("stat-available").textContent = Math.max(0, MAX_CHATS - countActive);
+  });
+}
+
+function selectRoom(salaId, clienteNombre) {
+  activeRoomId = salaId;
+  $("vendor-placeholder").style.display  = "none";
+  $("vendor-active-chat").style.display  = "flex";
+  $("vchat-name").textContent   = clienteNombre;
+  $("vchat-avatar").textContent = ini(clienteNombre);
+
+  const container = $("vendor-messages");
+  container.innerHTML = "";
+  sysMsg(container, `— Chat con ${clienteNombre} —`);
+  listenMessages(container);
+  $("vendor-msg-input").focus();
+}
+
+async function terminateChat() {
+  if (!activeRoomId || !confirm("¿Terminar este chat?")) return;
+  await updateDoc(doc(db, "salas", activeRoomId), { estado: "terminado" });
+  activeRoomId = null;
+  $("vendor-active-chat").style.display = "none";
+  $("vendor-placeholder").style.display = "flex";
+  if (unsubMessages) { unsubMessages(); unsubMessages = null; }
+  toast("Chat cerrado con éxito");
+}
+
+// ── MENSAJERÍA COMPARTIDA ────────────────────────────────
+function listenMessages(container) {
+  if (unsubMessages) unsubMessages();
+
+  const rendered = new Set();
+  const q = query(collection(db, "salas", activeRoomId, "mensajes"), orderBy("fecha", "asc"));
+
+  unsubMessages = onSnapshot(q, snap => {
+    snap.docChanges().forEach(change => {
+      if (change.type !== "added") return;
+      const msgDoc = change.doc;
+      if (rendered.has(msgDoc.id)) return;
+      rendered.add(msgDoc.id);
+
+      const msg    = msgDoc.data();
+      const isMine = msg.remitenteId === myId;
+
+      const row = document.createElement("div");
+      row.className = "msg-row " + (isMine ? "sent" : "recv");
+
+      const timeStr = msg.fecha?.toDate
+        ? msg.fecha.toDate().toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })
+        : "";
+
+      row.innerHTML =
+        `<div class="msg-sender">${isMine ? "Tú" : esc(msg.remitenteNombre)}</div>` +
+        `<div class="msg-bubble">${esc(msg.texto)}</div>` +
+        `<div class="msg-time">${timeStr}</div>`;
+
+      container.appendChild(row);
+      container.scrollTop = container.scrollHeight;
+      if (!isMine) beep();
+    });
+  });
+}
+
+async function sendMessage() {
+  if (!activeRoomId) return;
+  const input = myRole === "cliente" ? $("client-msg-input") : $("vendor-msg-input");
+  const texto = input.value.trim();
+  if (!texto) return;
+
+  try {
+    await addDoc(collection(db, "salas", activeRoomId, "mensajes"), {
+      remitenteId:     myId,
+      remitenteNombre: myName,
+      texto:           texto,
+      fecha:           new Date()
+    });
+    input.value = "";
+  } catch (err) {
+    toast("Error al enviar el mensaje");
+    console.error(err);
+  }
+}
+
+// ── SALIR ────────────────────────────────────────────────
+async function exitSystem() {
+  if (!confirm("¿Salir del chat?")) return;
+  if (unsubMessages) unsubMessages();
+  if (unsubRoom)     unsubRoom();
+  if (unsubRooms)    unsubRooms();
+  if (myRole === "cliente" && activeRoomId) {
+    try { await deleteDoc(doc(db, "salas", activeRoomId)); } catch(e) {}
+  }
+  location.reload();
+}
+
+$("btn-client-exit").addEventListener("click", exitSystem);
+$("btn-vendor-exit").addEventListener("click", exitSystem);
+</script>
 
 </body>
 </html>
