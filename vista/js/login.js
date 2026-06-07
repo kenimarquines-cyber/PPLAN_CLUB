@@ -1,3 +1,11 @@
+// ==========================================
+// 🌐 CONFIGURACIÓN DEL BACKEND (RENDER)
+// ==========================================
+// ⚠️ REEMPLAZA ESTA URL POR TU LINK REAL DE RENDER (Sin "/" al final)
+const URL_API = "https://pplan-club.onrender.com"; 
+
+
+// --- GESTIÓN DE PANELES ---
 function showPanel(id) {
     document.getElementById(id).classList.add('active');
     document.getElementById('loginMsg').innerText = ""; 
@@ -25,7 +33,7 @@ function borrarTodo() {
 }
 
 // ==========================================
-// 🚀 ENVIAR REGISTRO AL BACKEND (FLASK)
+// 🚀 ENVIAR REGISTRO AL BACKEND (FLASK EN LA NUBE)
 // ==========================================
 function guardarRegistro() {
     const user = document.getElementById('regUser').value.trim();
@@ -45,7 +53,6 @@ function guardarRegistro() {
         return;
     }
 
-    // Adaptamos el envío a los nombres en minúscula que espera Flask
     const datosUsuario = {
         id_usuario: "USU_" + Math.floor(1000 + Math.random() * 9000), 
         nombre: user,              
@@ -57,7 +64,8 @@ function guardarRegistro() {
     msg.style.color = "#ffcc00";
     msg.innerText = "Procesando registro...";
 
-    fetch('http://127.0.0.1:5000/api/usuarios/registrar', {
+    // Intercambiamos la URL local fija por la variable de Render ${URL_API}
+    fetch(`${URL_API}/api/usuarios/registrar`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -68,7 +76,7 @@ function guardarRegistro() {
     .then(resultado => {
         if (resultado.status === "success") {
             msg.style.color = "#4dff88"; 
-            msg.innerText = "¡Usuario guardado en SQLite con éxito!";
+            msg.innerText = "¡Usuario guardado en la base de datos con éxito!";
             
             document.getElementById('regUser').value = "";
             document.getElementById('regPass').value = "";
@@ -87,7 +95,7 @@ function guardarRegistro() {
 }
 
 // ==========================================
-// 🔓 VALIDAR LOGIN CON EL BACKEND (FLASK)
+// 🔓 VALIDAR LOGIN CON EL BACKEND (FLASK EN LA NUBE)
 // ==========================================
 function validarLogin() {
     const userIn = document.getElementById('loginUser').value.trim().toLowerCase();
@@ -103,7 +111,8 @@ function validarLogin() {
     msg.style.color = "#ffcc00";
     msg.innerText = "Verificando credenciales...";
 
-    fetch('http://127.0.0.1:5000/api/usuarios')
+    // Intercambiamos la URL local fija por la variable de Render ${URL_API}
+    fetch(`${URL_API}/api/usuarios`)
     .then(respuesta => respuesta.json())
     .then(usuarios => {
         const usuarioEncontrado = usuarios.find(u => u.nombre.toLowerCase() === userIn);
@@ -113,6 +122,10 @@ function validarLogin() {
             msg.innerText = "Este usuario no está registrado en el sistema";
             return;
         }
+
+        // Nota: Si en tu backend realizas la verificación de contraseña en la API,
+        // asegúrate de validarla aquí también si traes los datos en texto plano, por ejemplo:
+        // if (usuarioEncontrado.contraseña !== passIn) { ... }
 
         msg.style.color = "#4dff88"; 
         msg.innerText = "Usuario correcto ingresando...";
@@ -165,18 +178,3 @@ function togglePassword(inputId, icon) {
         icon.textContent = "🙈";
     }
 }
-
-// ❌ NO DEJES ESTO:
-// const URL_API = "https://tu-link-de-render.onrender.com"; 
-
-//  PON TU ENLACE REAL ASÍ:
-const URL_API = "https://pplan-club-tu-url-de-render.onrender.com"; 
-
-// Tu código para validar el registro debería usarlo así:
-fetch(`${URL_API}/guardar_registro`, {  // O la ruta exacta que definiste en app.py
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(datos)
-})
