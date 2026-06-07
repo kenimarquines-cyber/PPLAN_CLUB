@@ -101,7 +101,7 @@ async function handleCrear() {
   btn.disabled = true;
 
   try {
-    // 1. Registramos la sala en Firestore usando serverTimestamp()
+    // 1. Registramos la sala en Firestore
     await setDoc(doc(db, "salas", roomId), {
       hostId:      myId,
       hostNombre:  myName,
@@ -112,12 +112,18 @@ async function handleCrear() {
       creadaEn:    serverTimestamp()
     });
 
-    // 2. Configuración visual de la pantalla de espera
+    // 2. Guardamos credenciales locales para re-conexión si recarga por error
+    localStorage.setItem("planclub_id", myId);
+    localStorage.setItem("planclub_name", myName);
+    localStorage.setItem("planclub_role", "host");
+    localStorage.setItem("planclub_room", roomId);
+
+    // 3. Configuración visual de la pantalla de espera
     $("espera-code").textContent = roomCode;
     $("espera-name").textContent = myName;
     showScreen("screen-espera");
 
-    // 3. Escuchar hasta que el guest se una
+    // 4. Escuchar hasta que el guest se una
     unsubRoom = onSnapshot(doc(db, "salas", roomId), snap => {
       if (!snap.exists()) return;
       const data = snap.data();
@@ -135,54 +141,33 @@ async function handleCrear() {
   }
 }
 
-/* ── UNIRSE A SALA ──────────────────────────────────── */
-$("btn-unirse").addEventListener("click", handleUnirse);
 
-// Inputs de dígitos
-const digitInputs = document.querySelectorAll(".code-digit");
-digitInputs.forEach((inp, idx) => {
-  inp.addEventListener("input", () => {
-    inp.value = inp.value.replace(/\D/g,"").slice(-1);
-    if (inp.value && idx < digitInputs.length - 1) digitInputs[idx+1].focus();
-    inp.classList.toggle("filled", !!inp.value);
-    const code = [...digitInputs].map(d => d.value).join("");
-    if (code.length === 6) {
-      const name = $("input-name-unirse").value.trim();
-      if (name) unirseConCodigo(name, code);
-    }
-  });
-  inp.addEventListener("keydown", e => {
-    if (e.key === "Backspace" && !inp.value && idx > 0) {
-      digitInputs[idx-1].focus();
-      digitInputs[idx-1].value = "";
-      digitInputs[idx-1].classList.remove("filled");
-    }
-  });
-  inp.addEventListener("paste", e => {
-    e.preventDefault();
-    const text = (e.clipboardData||window.clipboardData).getData("text").replace(/\D/g,"").slice(0,6);
-    [...text].forEach((ch,i) => { if(digitInputs[i]) { digitInputs[i].value=ch; digitInputs[i].classList.add("filled"); } });
-    if (text.length === 6) {
-      const name = $("input-name-unirse").value.trim();
-      if (name) unirseConCodigo(name, text);
-    }
-  });
-});
 
-function handleUnirse() {
-  const name = $("input-name-unirse").value.trim();
-  if (!name) { $("input-name-unirse").focus(); toast("Escribe tu nombre primero"); return; }
-  const code = [...digitInputs].map(d => d.value).join("");
-  if (code.length < 6) { digitInputs[0].focus(); toast("Ingresa el código completo"); return; }
-  unirseConCodigo(name, code);
-}
+
+
 
 async function unirseConCodigo(name, code) {
-  myName = name;
-  myId   = "usr_" + uid();
-  myRole = "guest";
   roomCode = code;
   roomId   = "sala_" + code;
+
+  // Si ya existía una sesión local para esta misma sala, reutilizamos el ID viejo
+  const localRoom = localStorage.getItem("planclub_room");
+  const localId   = localStorage.getItem("planclub_id");
+  
+  if (localRoom === roomId && localId) {
+    myId = localId;
+  } else {
+    myId = "usr_" + uid();
+  }
+
+  myName = name;
+  myRole = "guest";
+
+  // Guardamos o actualizamos en el almacenamiento local
+  localStorage.setItem("planclub_id", myId);
+  localStorage.setItem("planclub_name", myName);
+  localStorage.setItem("planclub_role", "guest");
+  localStorage.setItem("planclub_room", roomId);
 
   const btn = $("btn-unirse");
   btn.textContent = "Conectando...";
@@ -206,13 +191,16 @@ async function unirseConCodigo(name, code) {
   }
 
   const sala = salaSnap.data();
-  if (sala.estado !== "esperando") {
+  
+  // MODIFICACIÓN DE SEGURIDAD: Si la sala no está esperando, pero los IDs coinciden, lo dejamos pasar (re-conexión)
+  if (sala.estado !== "esperando" && sala.guestId !== myId && sala.hostId !== myId) {
     toast("Esta sala ya está en uso o fue cerrada", true);
     btn.textContent = "UNIRME AL CHAT"; btn.disabled = false;
     return;
   }
 
   try {
+    // Actualizamos en Firebase (si ya estaba conectado no afecta en nada malo re-escribirlo)
     await updateDoc(doc(db, "salas", roomId), {
       guestId:     myId,
       guestNombre: myName,
@@ -327,13 +315,6 @@ async function salir() {
       }, 5000);
     } catch(e) {}
   }
+  localStorage.clear(); // <-- Limpia el almacenamiento al salir legalmente
   location.reload();
 }
-
-$("btn-exit-espera").addEventListener("click", async () => {
-  if (unsubRoom) unsubRoom();
-  if (roomId) { try { await deleteDoc(doc(db, "salas", roomId)); } catch(e) {} }
-  location.reload();
-});
-
-$("btn-exit-chat").addEventListener("click", salir);
