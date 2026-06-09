@@ -37,6 +37,32 @@
           </div>
         </div>
 
+        <div id="screen-chat" class="screen" style="display:none;">
+    <div class="chat-container" style="display:flex; flex-direction:column; height:100vh; padding:20px; color:#fff;">
+      
+      <div class="chat-header" style="display:flex; align-items:center; gap:12px; border-bottom:1px solid #222; padding-bottom:10px;">
+        <div id="chat-peer-avatar" class="avatar" style="background:#00f3ff; color:#000; padding:8px 14px; border-radius:50%; font-weight:bold;">-</div>
+        <div>
+          <h3 id="chat-peer-name" style="margin:0; font-size:16px;">Cargando...</h3>
+          <span style="display:flex; align-items:center; gap:6px; font-size:12px; color:#aaa;">
+            <span id="chat-status-dot" class="waiting" style="width:8px; height:8px; background:#ff4455; border-radius:50%;"></span>
+            <span id="chat-status-txt">conectando</span>
+          </span>
+        </div>
+        <span id="chat-room-code" style="margin-left:auto; font-family:monospace; color:#00f3ff;"># ------</span>
+      </div>
+
+      <div id="chat-messages" style="flex:1; overflow-y:auto; padding:20px 0;">
+        </div>
+
+      <div id="input-bar" class="locked" style="display:flex; gap:10px;">
+        <input type="text" placeholder="Escribe un mensaje VIP..." style="flex:1; background:#111; border:1px solid #333; color:#fff; padding:12px; border-radius:8px;" />
+        <button style="background:#00f3ff; color:#000; border:none; padding:0 20px; border-radius:8px; font-weight:bold;">ENVIAR</button>
+      </div>
+
+    </div>
+  </div>
+
         <!-- Panel para Crear Sala -->
         <div id="panel-crear" style="display:flex; flex-direction:column; gap:18px;">
           <div class="field-group">
