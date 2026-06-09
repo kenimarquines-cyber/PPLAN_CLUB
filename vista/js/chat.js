@@ -212,7 +212,7 @@ function abrirChat(nombreCompañero) {
     const txt = $("chat-status-txt");
     if (txt) txt.textContent = "en línea";
 
-    // 5. Desbloquear entrada de mensajes
+    // 5. Desbloquear entrada de mensaje
     const inputBar = $("input-bar");
     if (inputBar) inputBar.classList.remove("locked");
 
